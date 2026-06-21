@@ -728,6 +728,7 @@ async function guardarAdmin() {
       const eq = leerEquipoForm();
       if (eq.gerentes.length !== 2) { msg.textContent='⚠ Se requieren exactamente 2 gerentes.'; msg.style.color='#c62828'; return; }
       if (eq.asesores.length === 0) { msg.textContent='⚠ Agrega al menos 1 asesor.'; msg.style.color='#c62828'; return; }
+      if (eq.horaCierre <= eq.horaApertura + 8) { msg.textContent='⚠ El cierre debe ser al menos 8 horas después de la apertura.'; msg.style.color='#c62828'; return; }
       await guardarConfig('equipo', eq); aplicarEquipo(eq);
       msg.textContent='✓ Equipo guardado.'; msg.style.color='#2e7d32';
     } else if (_tabAdmin === 'proxima') {
