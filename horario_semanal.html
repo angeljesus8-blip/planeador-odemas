@@ -1156,8 +1156,9 @@ async function init() {
 
 function renderSemana() {
   const guardada   = _cache.semanas_guardadas?.[`semana_${_semana}`];
-  const esFutura   = _semana > _base.semana;
-  const sinAsignar = esFutura && !guardada;
+  const esFutura    = _semana > _base.semana;
+  const tieneExcep  = !!_cache.excepciones?.[`semana_${_semana}`];
+  const sinAsignar  = esFutura && !guardada && !tieneExcep;
 
   document.getElementById('sin-asignar').style.display   = sinAsignar ? '' : 'none';
   document.getElementById('wrapper-tabla').style.display = sinAsignar ? 'none' : '';
