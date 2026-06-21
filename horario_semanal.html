@@ -1017,7 +1017,14 @@ function renderSemana() {
   document.getElementById('pie').style.display           = sinAsignar ? 'none' : '';
   const btnG = document.getElementById('btn-guardar-sem');
   if (btnG) btnG.style.display = sinAsignar ? 'none' : '';
-  if (sinAsignar) { _diasActuales = null; return; }
+  if (sinAsignar) {
+    _diasActuales = null;
+    const fi = new Date(_domingo); fi.setDate(fi.getDate() + 1);
+    const ff = new Date(_domingo); ff.setDate(ff.getDate() + 6);
+    document.getElementById('badge-semana').textContent =
+      `Semana ${_semana}  ·  ${fi.getDate()}–${ff.getDate()} ${fi.toLocaleString('es-MX',{month:'short'})} ${fi.getFullYear()}`;
+    return;
+  }
 
   const dias = guardada ? guardada.dias : generarSemana(_semana, _cache.historial, _cache.excepciones);
   _diasActuales = dias;
