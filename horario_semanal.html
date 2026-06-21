@@ -148,6 +148,10 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
 }
 .btn-login:hover { opacity: .88; }
 .login-error { font-size: 11px; color: var(--rojo); margin-top: 10px; min-height: 16px; }
+.vac-dias-grid { display:flex; gap:3px; justify-content:center; flex-wrap:nowrap; margin-top:5px; }
+.vac-dia-pill { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:4px; font-size:10px; font-weight:700; cursor:pointer; background:#f0f0f0; color:#aaa; border:1.5px solid #ddd; transition:.12s; user-select:none; }
+.vac-dia-pill input { display:none; }
+.vac-dia-pill.activo { background:var(--rojo); color:#fff; border-color:var(--rojo); }
 .login-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
 .ltab { flex: 1; padding: 8px; border: 1.5px solid var(--borde); border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; background: #fff; color: var(--gris-sub); transition: all .15s; }
 .ltab.activo { background: var(--rojo); color: #fff; border-color: var(--rojo); }
@@ -581,8 +585,8 @@ function renderFormProxima() {
       <td class="prox-nombre">${p.nombre.split(' ').slice(0,2).join(' ')}</td>
       <td style="text-align:center">
         <input type="checkbox" class="chk-vac" data-persona="${p.key}" ${enVac?'checked':''} onchange="toggleVacDias('${p.key}')">
-        <div id="vac-dias-${p.key}" style="${enVac?'':'display:none'};margin-top:4px;">
-          ${[0,1,2,3,4,5,6].map(i=>`<label style="font-size:9px;display:inline-block;margin:1px 2px;"><input type="checkbox" class="chk-vac-dia" data-persona="${p.key}" data-dia="${i}" ${vacDias.includes(i)?'checked':''}>${DIAS_NOMBRES[i].slice(0,3)}</label>`).join('')}
+        <div id="vac-dias-${p.key}" class="vac-dias-grid" style="${enVac?'':'display:none'}">
+          ${[0,1,2,3,4,5,6].map(i=>`<label class="vac-dia-pill${vacDias.includes(i)?' activo':''}"><input type="checkbox" class="chk-vac-dia" data-persona="${p.key}" data-dia="${i}" ${vacDias.includes(i)?'checked':''} onchange="this.closest('label').classList.toggle('activo',this.checked)">${DIAS_NOMBRES[i].charAt(0)}</label>`).join('')}
         </div>
       </td>
       <td><select class="eq-input eq-short chk-desc" data-persona="${p.key}">${dOpts(descV)}</select></td>
