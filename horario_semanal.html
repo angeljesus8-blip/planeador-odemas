@@ -828,7 +828,9 @@ function generarSemana(semana, historial, excepciones) {
     if (!['descanso','vacante'].includes(dias[0][p])) balAs[p] += abre(dias[0][p]) ? 1 : -1;
   });
 
-  let prevGerCierra  = domAsig.cierre.find(p => EQUIPO[p]?.tipo==='ger') ?? GERENTES[0];
+  // Gerente que cerró el domingo — solo cuenta si trabaja el lunes
+  const _gerCierraDom = domAsig.cierre.find(p => EQUIPO[p]?.tipo==='ger') ?? GERENTES[0];
+  let prevGerCierra = trabaja(_gerCierraDom, 1) ? _gerCierraDom : (GERENTES.find(g => g !== _gerCierraDom && trabaja(g, 1)) ?? GERENTES[0]);
   let prevAsesCierra = ASESORES.find(p => dias[0][p]==='cierre') ?? ASESORES[0];
 
   for (let d = 1; d <= 5; d++) {
