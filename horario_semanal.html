@@ -277,6 +277,7 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
   Sesión: <span id="usuario-email"></span>
   <button class="btn-sm btn-admin" onclick="abrirAdmin()">✎ Editar datos</button>
   <button class="btn-sm" id="btn-guardar-sem" onclick="guardarSemana()" style="background:var(--azul);color:#fff;border:none;display:none;">💾 Guardar semana</button>
+  <button class="btn-sm" id="btn-desbloquear-sem" onclick="desbloquearSemana()" style="background:#888;color:#fff;border:none;display:none;">🔓 Desbloquear</button>
   <button class="btn-sm btn-logout" onclick="doLogout()">Cerrar sesión</button>
 </div>
 
@@ -1076,8 +1077,10 @@ function renderSemana() {
   document.getElementById('wrapper-tabla').style.display = sinAsignar ? 'none' : '';
   document.getElementById('nota-pie').style.display      = sinAsignar ? 'none' : '';
   document.getElementById('pie').style.display           = sinAsignar ? 'none' : '';
-  const btnG = document.getElementById('btn-guardar-sem');
+  const btnG  = document.getElementById('btn-guardar-sem');
+  const btnD  = document.getElementById('btn-desbloquear-sem');
   if (btnG) btnG.style.display = sinAsignar ? 'none' : '';
+  if (btnD) btnD.style.display = (!sinAsignar && guardada) ? '' : 'none';
   if (sinAsignar) {
     _diasActuales = null;
     const fi = new Date(_domingo); fi.setDate(fi.getDate() + 1);
@@ -1114,7 +1117,18 @@ async function guardarSemana() {
 
   const btn = document.getElementById('btn-guardar-sem');
   if (btn) { btn.textContent = '✓ Guardada'; setTimeout(() => { btn.textContent = '💾 Guardar semana'; }, 2000); }
+  document.getElementById('btn-desbloquear-sem').style.display = '';
   document.getElementById('badge-semana').dataset.guardada = '1';
+}
+
+async function desbloquearSemana() {
+  if (!confirm(`¿Desbloquear Semana ${_semana}? El horario se regenerará desde el historial.`)) return;
+  const sg = { ..._cache.semanas_guardadas };
+  delete sg[`semana_${_semana}`];
+  await guardarConfig('semanas_guardadas', sg);
+  _cache.semanas_guardadas = sg;
+  document.getElementById('btn-desbloquear-sem').style.display = 'none';
+  renderSemana();
 }
 
 function navSemana(delta) {
