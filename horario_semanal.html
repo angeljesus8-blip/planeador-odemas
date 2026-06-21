@@ -865,7 +865,7 @@ function generarSemana(semana, historial, excepciones) {
       continue;
     }
     const scored = ases.map(p => ({
-      p, score: (tieneEsp(p,d)?-100:0) + (p===prevAsesCierra?-3:0) - balAs[p]
+      p, score: (tieneEsp(p,d)?-100:0) + (p===prevAsesCierra?-3:0) + balAs[p]
     })).sort((a,b) => a.score - b.score);
 
     const nAbre = Math.ceil(ases.length / 2);
