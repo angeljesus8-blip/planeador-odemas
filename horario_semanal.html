@@ -991,6 +991,7 @@ async function init() {
 
 function renderSemana() {
   const dias    = generarSemana(_semana, _cache.historial, _cache.excepciones);
+  console.log('renderSemana sem:', _semana, 'dias[1]:', JSON.stringify(dias[1]));
   const comidas = calcularComidas(dias);
   renderTabla(_semana, _domingo, dias, comidas);
 }
