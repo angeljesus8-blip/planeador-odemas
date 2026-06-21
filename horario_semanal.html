@@ -593,6 +593,7 @@ function renderFormEquipo() {
       <table class="eq-table"><thead><tr><th>Nombre completo</th><th>Cargo</th><th>#Emp</th><th>Descanso fijo</th><th>ID</th><th></th></tr></thead>
       <tbody id="tbody-as">${eq.asesores.map(rowA).join('')}</tbody></table>
       <button class="btn-agregar-as" onclick="agregarAsesor()">+ Agregar asesor</button></div>`;
+  actualizarPreviewTurnos();
 }
 function agregarAsesor() {
   const tr = document.createElement('tr');
