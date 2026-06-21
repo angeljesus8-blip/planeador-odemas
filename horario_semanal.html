@@ -495,7 +495,8 @@ function cambiarTab(tab) {
 // ── Formulario Equipo ─────────────────────────────────────
 function renderFormEquipo() {
   const eq = _equipoData || EQUIPO_DEFAULT;
-  const dOpts = sel => DIAS_NOMBRES.map((n,i)=>`<option value="${i}"${i==sel?' selected':''}>${n}</option>`).join('');
+  const dOpts = sel => `<option value="-1"${sel===-1||sel==null?' selected':''}>Sin descanso fijo</option>` +
+    DIAS_NOMBRES.map((n,i)=> i===0||i===6 ? '' : `<option value="${i}"${i==sel?' selected':''}>${n}</option>`).join('');
   const rowG = (g,idx) => `<tr data-tipo="ger" data-idx="${idx}">
     <td><input class="eq-input" data-campo="nombre" value="${g.nombre}"></td>
     <td><input class="eq-input eq-cargo" data-campo="cargo" value="${g.cargo}"></td>
@@ -530,7 +531,7 @@ function agregarAsesor() {
     <td><input class="eq-input" data-campo="nombre" placeholder="Nombre completo"></td>
     <td><input class="eq-input eq-cargo" data-campo="cargo" value="Asesor"></td>
     <td><input class="eq-input eq-short" data-campo="emp" placeholder="#Emp"></td>
-    <td><select class="eq-input eq-short" data-campo="descFijo">${DIAS_NOMBRES.map((n,i)=>`<option value="${i}">${n}</option>`).join('')}</select></td>
+    <td><select class="eq-input eq-short" data-campo="descFijo"><option value="-1">Sin descanso fijo</option>${DIAS_NOMBRES.map((n,i)=>i===0||i===6?'':`<option value="${i}">${n}</option>`).join('')}</select></td>
     <td><input class="eq-input eq-short" data-campo="key" placeholder="ID (ej: Carlos)"></td>
     <td><button class="btn-quitar-as" onclick="this.closest('tr').remove()">✕</button></td>`;
   document.getElementById('tbody-as').appendChild(tr);
@@ -919,9 +920,11 @@ function renderTabla(semana, domingo, dias, comidas) {
   document.getElementById('badge-semana').textContent =
     `Semana ${semana}  ·  ${fi.getDate()}–${ff.getDate()} ${fi.toLocaleString('es-MX',{month:'short'})} ${fi.getFullYear()}`;
 
-  const notaPie = PERSONAS.map(p =>
-    `<strong>${EQUIPO[p].nombre.split(' ')[0]}:</strong> ${DIAS_NOMBRES[EQUIPO[p].descFijo]}`
-  ).join(' &nbsp;·&nbsp; ');
+  const notaPie = PERSONAS.map(p => {
+    const df = EQUIPO[p].descFijo;
+    const dia = (df == null || df === -1) ? 'Variable' : (DIAS_NOMBRES[df] || 'Variable');
+    return `<strong>${EQUIPO[p].nombre.split(' ')[0]}:</strong> ${dia}`;
+  }).join(' &nbsp;·&nbsp; ');
   document.getElementById('nota-pie').innerHTML = `Descansos fijos — ${notaPie}`;
   document.getElementById('pie').textContent = 'Generado: ' + new Date().toLocaleString('es-MX');
 }
