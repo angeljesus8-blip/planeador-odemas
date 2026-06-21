@@ -929,9 +929,8 @@ function generarSemana(semana, historial, excepciones) {
     // Asesores (N personas)
     if (ases.length === 0) continue;
     if (ases.length === 1) {
-      m[ases[0]] = tieneEsp(ases[0],d) ? 'apertura_10' : 'cierre';
-      balAs[ases[0]] += tieneEsp(ases[0],d) ? 1 : -1;
-      prevAsesCierra = ases[0];
+      m[ases[0]] = tieneEsp(ases[0],d) ? 'apertura_10' : 'apertura';
+      balAs[ases[0]]++;
       continue;
     }
     const scored = ases.map(p => ({
