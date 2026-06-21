@@ -800,10 +800,12 @@ function generarSemana(semana, historial, excepciones) {
   const dias = new Array(7).fill(null).map(() => ({}));
 
   function aplicarAsig(asig, dia) {
+    const gersDisp = GERENTES.filter(p => trabaja(p, dia));
     PERSONAS.forEach(p => {
-      if (!trabaja(p, dia))              { dias[dia][p] = enVacDia(p, dia) ? 'vacante' : 'descanso'; }
-      else if (asig.apertura.includes(p)) { dias[dia][p] = (EQUIPO[p].tipo==='as' && tieneEsp(p,dia)) ? 'apertura_10' : 'apertura'; }
-      else                               { dias[dia][p] = 'cierre'; }
+      if (!trabaja(p, dia))                                    { dias[dia][p] = enVacDia(p, dia) ? 'vacante' : 'descanso'; }
+      else if (EQUIPO[p].tipo === 'ger' && gersDisp.length === 1) { dias[dia][p] = 'doble'; }
+      else if (asig.apertura.includes(p))                      { dias[dia][p] = (EQUIPO[p].tipo==='as' && tieneEsp(p,dia)) ? 'apertura_10' : 'apertura'; }
+      else                                                     { dias[dia][p] = 'cierre'; }
     });
   }
 
