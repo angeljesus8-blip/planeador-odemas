@@ -593,6 +593,14 @@ function renderFormEquipo() {
         </label>
         <span id="preview-turnos" style="font-size:11px;color:#555;"></span>
       </div>
+      <div style="margin-top:10px;">
+        <label style="font-size:12px;font-weight:600;">Rotación de turnos&nbsp;
+          <select class="eq-input eq-short" id="inp-rotacion" style="margin-left:6px;">
+            <option value="diaria"${(eq.rotacion??'diaria')==='diaria'?' selected':''}>Diaria (alterna cada día)</option>
+            <option value="semanal"${eq.rotacion==='semanal'?' selected':''}>Semanal (bloque toda la semana)</option>
+          </select>
+        </label>
+      </div>
     </div>
     <div class="eq-section">
       <h4>PIN de acceso para tu equipo</h4>
@@ -650,7 +658,8 @@ function leerEquipoForm() {
     if (allowVacante && obj.vacante) { obj.nombre = 'Puesto vacante'; obj.cargo = ''; obj.emp = ''; }
     return obj;
   }).filter(o => (o.nombre && o.key) || (allowVacante && o.vacante && o.key));
-  return { pin, horaApertura, horaCierre, gerentes: leer('tbody-ger', true), asesores: leer('tbody-as', false) };
+  const rotacion = document.getElementById('inp-rotacion')?.value || 'diaria';
+  return { pin, horaApertura, horaCierre, rotacion, gerentes: leer('tbody-ger', true), asesores: leer('tbody-as', false) };
 }
 
 // ── Formulario Próxima semana ─────────────────────────────────
@@ -1014,6 +1023,32 @@ function generarSemana(semana, historial, excepciones) {
     });
     const cierresF = scored.slice(nAbre).filter(s => !tieneEsp(s.p,d));
     if (cierresF.length) prevAsesCierra = cierresF[cierresF.length-1].p;
+  }
+
+  // Rotación semanal por bloque
+  if ((_equipoData?.rotacion ?? 'diaria') === 'semanal') {
+    const histPrev = historial?.[`semana_${semana - 1}`];
+    // Determinar grupo de cada persona: quien cerró sab la semana pasada → abre esta semana
+    const grupoSem = p => {
+      if (!histPrev) return ASESORES.indexOf(p) % 2 === 0 ? 'apertura' : 'cierre';
+      return (histPrev.sabado?.cierre || []).includes(p) ? 'apertura' : 'cierre';
+    };
+    const grupoGer = p => {
+      if (!histPrev) return GERENTES.indexOf(p) % 2 === 0 ? 'apertura' : 'cierre';
+      return (histPrev.sabado?.cierre || []).includes(p) ? 'apertura' : 'cierre';
+    };
+    [0,1,2,3,4,5,6].forEach(d => {
+      // Asesores
+      const asesD = ASESORES.filter(p => trabaja(p, d));
+      if (asesD.length >= 2) {
+        asesD.forEach(p => { dias[d][p] = grupoSem(p) === 'apertura' ? 'apertura' : 'cierre'; });
+      }
+      // Gerentes (solo si hay 2 disponibles)
+      const gersD = GERENTES.filter(p => trabaja(p, d));
+      if (gersD.length >= 2) {
+        gersD.forEach(p => { dias[d][p] = grupoGer(p) === 'apertura' ? 'apertura' : 'cierre'; });
+      }
+    });
   }
 
   // Solicitudes especiales: permiso y capacitación (no afectan rotación, solo label)
