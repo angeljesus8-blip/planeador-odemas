@@ -89,7 +89,9 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
 .apertura  { background: var(--c-apertura); font-weight: 600; color: #1B5E20; }
 .cierre    { background: var(--c-cierre);   font-weight: 600; color: #5D4037; }
 .doble     { background: var(--c-doble);    font-weight: 700; color: #BF360C; }
-.comp      { background: var(--c-comp);     font-weight: 600; color: #0D47A1; }
+.comp         { background: var(--c-comp);     font-weight: 600; color: #0D47A1; }
+.permiso      { background: #E8F5E9; font-weight: 600; color: #1B5E20; }
+.capacitacion { background: #FFF8E1; font-weight: 600; color: #E65100; }
 .comida    { background: var(--c-comida);   color: #880E4F; font-size: 10px; }
 .ley-silla { background: var(--c-ley);      color: #827717; font-size: 9px; }
 .vacante   { background: var(--c-vacante) !important; color: #CCC !important; font-size: 9px; }
@@ -230,9 +232,17 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
 .prox-table th { background: var(--gris-fondo); padding: 6px 8px; text-align: left; border-bottom: 2px solid var(--borde); font-size: 10px; color: var(--gris-sub); font-weight: 600; }
 .prox-table td { padding: 6px 6px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
 .prox-nombre { font-weight: 600; font-size: 11px; min-width: 130px; }
-.prox-esp { min-width: 200px; }
+.prox-esp { min-width: 340px; }
 .dia-check { display: inline-flex; flex-direction: column; align-items: center; margin-right: 4px; font-size: 9px; color: var(--gris-sub); cursor: pointer; gap: 2px; }
 .dia-check input { cursor: pointer; }
+.esp-day-wrap { display:inline-flex; flex-direction:column; align-items:center; margin-right:4px; font-size:9px; color:var(--gris-sub); gap:2px; }
+.esp-day-wrap select { font-size:9px; padding:1px 2px; border:1px solid var(--borde); border-radius:3px; background:#fff; cursor:pointer; max-width:42px; }
+.esp-day-wrap select.sel-ap { background:#E8F5E9; }
+.esp-day-wrap select.sel-ci { background:#FBE9E7; }
+.esp-day-wrap select.sel-pm { background:#E8F5E9; }
+.esp-day-wrap select.sel-cap { background:#FFF8E1; }
+.cap-times { display:flex; gap:2px; margin-top:2px; }
+.cap-times input[type=time] { font-size:8px; width:58px; border:1px solid var(--borde); border-radius:3px; padding:1px 2px; }
 </style>
 </head>
 <body>
@@ -648,7 +658,20 @@ function renderFormProxima() {
   const semTarget = _semana + _semProxOffset;
   const excSem = _datosAdmin.excepciones[`semana_${semTarget}`] || {};
   const dOpts = sel => DIAS_NOMBRES.map((n,i)=>`<option value="${i}"${i==sel?' selected':''}>${n}</option>`).join('');
-  const espDe = pk => { const e = excSem.turno_especial?.[pk]; return Array.isArray(e)?e:e!=null?[e]:[]; };
+  const getEspVal = (pk, d) => {
+    const e = excSem.turno_especial?.[pk];
+    if (!e) return '';
+    if (Array.isArray(e)) return e.includes(d) ? 'apertura' : '';
+    const v = e[String(d)] ?? e[d];
+    if (!v) return '';
+    return typeof v === 'string' ? v : (v.tipo || '');
+  };
+  const getCapTimes = (pk, d) => {
+    const e = excSem.turno_especial?.[pk];
+    if (!e || Array.isArray(e)) return { entrada: '09:00', salida: '14:00' };
+    const v = e[String(d)] ?? e[d];
+    return { entrada: v?.entrada || '09:00', salida: v?.salida || '14:00' };
+  };
   const getVacDias = pk => {
     const v = excSem.vacaciones;
     if (!v) return [];
@@ -660,12 +683,25 @@ function renderFormProxima() {
     const vacDias = getVacDias(p.key);
     const enVac  = vacDias.length > 0;
     const descV  = excSem.descanso_override?.[p.key] ?? p.descFijo;
-    const espArr = espDe(p.key);
-    const espCell = esAs
-      ? `<td class="prox-esp">${[0,1,2,3,4,5,6].map(d=>
-          `<label class="dia-check"><input type="checkbox" class="chk-esp" data-persona="${p.key}" data-dia="${d}" ${espArr.includes(d)?'checked':''}>
-           <span>${DIAS_NOMBRES[d].slice(0,3)}</span></label>`).join('')}</td>`
-      : `<td class="prox-esp" style="color:#bbb;font-size:10px;text-align:center">—</td>`;
+    const espCell = `<td class="prox-esp">${[0,1,2,3,4,5,6].map(d => {
+      const val = getEspVal(p.key, d);
+      const cap = val === 'capacitacion' ? getCapTimes(p.key, d) : null;
+      const cls = val==='apertura'?'sel-ap':val==='cierre'?'sel-ci':val==='permiso'?'sel-pm':val==='capacitacion'?'sel-cap':'';
+      return `<div class="esp-day-wrap">
+        <span>${DIAS_NOMBRES[d].charAt(0)}</span>
+        <select class="esp-sel ${cls}" data-persona="${p.key}" data-dia="${d}" onchange="onEspChange(this)">
+          <option value="">—</option>
+          <option value="apertura"${val==='apertura'?' selected':''}>Ap↑</option>
+          <option value="cierre"${val==='cierre'?' selected':''}>Ci↓</option>
+          <option value="permiso"${val==='permiso'?' selected':''}>Pm</option>
+          <option value="capacitacion"${val==='capacitacion'?' selected':''}>Cap</option>
+        </select>
+        <div class="cap-times" style="${val==='capacitacion'?'':'display:none'}">
+          <input type="time" class="cap-e" data-persona="${p.key}" data-dia="${d}" value="${cap?.entrada||'09:00'}">
+          <input type="time" class="cap-s" data-persona="${p.key}" data-dia="${d}" value="${cap?.salida||'14:00'}">
+        </div>
+      </div>`;
+    }).join('')}</td>`;
     return `<tr>
       <td class="prox-nombre">${p.nombre.split(' ').slice(0,2).join(' ')}</td>
       <td style="text-align:center">
@@ -684,10 +720,16 @@ function renderFormProxima() {
       <button class="btn-sm" onclick="cambiarSemProx(1)">►</button>
     </div>
     <table class="prox-table"><thead><tr>
-      <th>Integrante</th><th>Vacaciones</th><th>Descanso</th><th>Turno 10:00 — días (asesores)</th>
+      <th>Integrante</th><th>Vacaciones</th><th>Descanso</th><th>Solicitud especial — por día</th>
     </tr></thead><tbody>${rows}</tbody></table>`;
 }
 function cambiarSemProx(delta) { _semProxOffset += delta; renderFormProxima(); }
+function onEspChange(sel) {
+  const p = sel.dataset.persona, d = sel.dataset.dia, v = sel.value;
+  sel.className = `esp-sel ${v==='apertura'?'sel-ap':v==='cierre'?'sel-ci':v==='permiso'?'sel-pm':v==='capacitacion'?'sel-cap':''}`;
+  const ct = sel.closest('.esp-day-wrap').querySelector('.cap-times');
+  if (ct) ct.style.display = v === 'capacitacion' ? '' : 'none';
+}
 function toggleVacDias(key) {
   const chk = document.querySelector(`.chk-vac[data-persona="${key}"]`);
   const div = document.getElementById(`vac-dias-${key}`);
@@ -712,10 +754,17 @@ function leerFormProxima() {
     if (persona && val !== persona.descFijo) descanso_override[p] = val;
   });
   const turno_especial = {};
-  document.querySelectorAll('.chk-esp:checked').forEach(c => {
-    const p = c.dataset.persona, d = parseInt(c.dataset.dia);
-    if (!turno_especial[p]) turno_especial[p] = [];
-    turno_especial[p].push(d);
+  document.querySelectorAll('.esp-sel').forEach(sel => {
+    const p = sel.dataset.persona, d = sel.dataset.dia, v = sel.value;
+    if (!v) return;
+    if (!turno_especial[p]) turno_especial[p] = {};
+    if (v === 'capacitacion') {
+      const entrada = document.querySelector(`.cap-e[data-persona="${p}"][data-dia="${d}"]`)?.value || '09:00';
+      const salida  = document.querySelector(`.cap-s[data-persona="${p}"][data-dia="${d}"]`)?.value || '14:00';
+      turno_especial[p][d] = { tipo: 'capacitacion', entrada, salida };
+    } else {
+      turno_especial[p][d] = v;
+    }
   });
   return { semana: semTarget, data: { vacaciones, descanso_override, turno_especial } };
 }
@@ -824,6 +873,7 @@ let _domingo = FECHA_DOMINGO_OVERRIDE ?? _base.domingo;
 let _semana  = SEMANA_OVERRIDE        ?? _base.semana;
 let _cache        = {};
 let _diasActuales = null;
+let _espActual    = {};
 
 // ============================================================
 //  MOTOR DE ROTACIÓN (N asesores)
@@ -852,7 +902,15 @@ function generarSemana(semana, historial, excepciones) {
     if (!partnerTrabaja) descFijo[ger] = -1; // trabaja todos los días
   });
   const abre    = t => t === 'apertura' || t === 'apertura_10';
-  const tieneEsp = (p, d) => { const e = espDia[p]; return Array.isArray(e) ? e.includes(d) : e === d; };
+  const getEsp  = (p, d) => {
+    const e = espDia[p];
+    if (!e) return null;
+    if (Array.isArray(e)) return e.includes(d) ? 'apertura' : null;
+    const v = e[String(d)] ?? e[d];
+    return v ?? null;
+  };
+  const espTipo = (p, d) => { const e = getEsp(p,d); return typeof e==='string' ? e : (e?.tipo||null); };
+  const tieneEsp = (p, d) => espTipo(p,d) === 'apertura';
 
   const histPrev = historial?.[`semana_${semana - 1}`];
 
@@ -923,8 +981,12 @@ function generarSemana(semana, historial, excepciones) {
     if (gers.length === 1) {
       m[gers[0]] = 'doble'; prevGerCierra = gers[0];
     } else if (gers.length >= 2) {
-      const gA = gers.find(p => p===prevGerCierra) ?? gers[0];
-      const gC = gers.find(p => p!==gA) ?? gers[1];
+      const forcedAp = gers.find(p => espTipo(p,d) === 'apertura');
+      const forcedCi = gers.find(p => espTipo(p,d) === 'cierre');
+      let gA, gC;
+      if (forcedAp)      { gA = forcedAp; gC = gers.find(p => p !== gA) ?? gers[1]; }
+      else if (forcedCi) { gC = forcedCi; gA = gers.find(p => p !== gC) ?? gers[0]; }
+      else               { gA = gers.find(p => p===prevGerCierra) ?? gers[0]; gC = gers.find(p => p!==gA) ?? gers[1]; }
       m[gA] = 'apertura'; m[gC] = 'cierre'; prevGerCierra = gC;
     }
 
@@ -937,18 +999,30 @@ function generarSemana(semana, historial, excepciones) {
       continue;
     }
     const scored = ases.map(p => ({
-      p, score: (tieneEsp(p,d)?-100:0) + (p===prevAsesCierra?-3:0) + balAs[p]
+      p, score: (espTipo(p,d)==='apertura'?-100:0) + (espTipo(p,d)==='cierre'?100:0) + (p===prevAsesCierra?-3:0) + balAs[p]
     })).sort((a,b) => a.score - b.score);
 
     const nAbre = Math.ceil(ases.length / 2);
     scored.forEach(({p}, i) => {
-      if (tieneEsp(p,d))  { m[p]='apertura_10'; balAs[p]++; }
-      else if (i < nAbre) { m[p]='apertura';    balAs[p]++; }
-      else                { m[p]='cierre';       balAs[p]--; }
+      const et = espTipo(p,d);
+      if      (et === 'apertura') { m[p]='apertura_10'; balAs[p]++; }
+      else if (et === 'cierre')   { m[p]='cierre';      balAs[p]--; }
+      else if (i < nAbre)         { m[p]='apertura';    balAs[p]++; }
+      else                        { m[p]='cierre';       balAs[p]--; }
     });
     const cierresF = scored.slice(nAbre).filter(s => !tieneEsp(s.p,d));
     if (cierresF.length) prevAsesCierra = cierresF[cierresF.length-1].p;
   }
+
+  // Solicitudes especiales: permiso y capacitación (no afectan rotación, solo label)
+  PERSONAS.forEach(p => {
+    [0,1,2,3,4,5,6].forEach(d => {
+      if (!trabaja(p, d)) return;
+      const et = espTipo(p, d);
+      if (et === 'permiso')      dias[d][p] = 'permiso';
+      if (et === 'capacitacion') dias[d][p] = 'capacitacion';
+    });
+  });
 
   // Compensación gerencia (solo si el partner existe y no es vacante)
   for (const ger of GERENTES) {
@@ -971,10 +1045,17 @@ function generarSemana(semana, historial, excepciones) {
 // ============================================================
 //  RENDER
 // ============================================================
-function infoTurno(persona, turno) {
+function infoTurno(persona, turno, dia) {
   if (turno === 'descanso') return INFO_DESCANSO;
   if (turno === 'vacante')  return INFO_VACANTE;
   if (turno === 'ausente')  return INFO_AUSENTE;
+  if (turno === 'permiso')  return { label: 'PERMISO', cls: 'permiso', ls1: '', ls2: '' };
+  if (turno === 'capacitacion') {
+    const e = _espActual?.[persona];
+    const v = e ? (e[String(dia)] ?? e[dia]) : null;
+    const ent = v?.entrada || '09:00', sal = v?.salida || '14:00';
+    return { label: `CAPACITACIÓN ${ent}–${sal}`, cls: 'capacitacion', ls1: '', ls2: '' };
+  }
   return TURNO_INFO[EQUIPO[persona].tipo]?.[turno] ?? { label: turno, cls: '', ls1: '', ls2: '' };
 }
 
@@ -999,7 +1080,7 @@ function renderTabla(semana, domingo, dias, comidas) {
     let rowH = `<tr><td class="lbl">Horario</td>`;
     let rowC = `<tr><td class="lbl">Comida</td>`;
     for (let d = 0; d < 7; d++) {
-      const inf = infoTurno(persona, dias[d][persona]);
+      const inf = infoTurno(persona, dias[d][persona], d);
       const com = comidas[d][persona] || '';
       rowH += td(inf.label, inf.cls);
       rowC += td(com, com ? 'comida' : 'vacio');
@@ -1016,7 +1097,7 @@ function renderTabla(semana, domingo, dias, comidas) {
     let rowL1 = `<tr><td class="lbl">Ley Silla — Desc.1</td>`;
     let rowL2 = `<tr><td class="lbl">Ley Silla — Desc.2</td>`;
     for (let d = 0; d < 7; d++) {
-      const inf = infoTurno(persona, dias[d][persona]);
+      const inf = infoTurno(persona, dias[d][persona], d);
       const com = comidas[d][persona] || '';
       rowH  += td(inf.label, inf.cls);
       rowC  += td(com,      com      ? 'comida'    : 'vacio');
@@ -1095,6 +1176,7 @@ function renderSemana() {
 
   const dias = guardada ? guardada.dias : generarSemana(_semana, _cache.historial, _cache.excepciones);
   _diasActuales = dias;
+  _espActual = _cache.excepciones?.[`semana_${_semana}`]?.turno_especial ?? {};
   const comidas = calcularComidas(dias);
   renderTabla(_semana, _domingo, dias, comidas);
 }
