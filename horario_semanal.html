@@ -276,6 +276,7 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
 <div id="barra-usuario">
   Sesión: <span id="usuario-email"></span>
   <button class="btn-sm btn-admin" onclick="abrirAdmin()">✎ Editar datos</button>
+  <button class="btn-sm" id="btn-guardar-sem" onclick="guardarSemana()" style="background:var(--azul);color:#fff;border:none;display:none;">💾 Guardar semana</button>
   <button class="btn-sm btn-logout" onclick="doLogout()">Cerrar sesión</button>
 </div>
 
@@ -753,7 +754,8 @@ const FECHA_DOMINGO_OVERRIDE = null;
 const _base    = semanaDeMostrar();
 let _domingo = FECHA_DOMINGO_OVERRIDE ?? _base.domingo;
 let _semana  = SEMANA_OVERRIDE        ?? _base.semana;
-let _cache   = {};
+let _cache        = {};
+let _diasActuales = null;
 
 // ============================================================
 //  MOTOR DE ROTACIÓN (N asesores)
@@ -997,8 +999,27 @@ async function init() {
 
 function renderSemana() {
   const dias    = generarSemana(_semana, _cache.historial, _cache.excepciones);
+  _diasActuales = dias;
   const comidas = calcularComidas(dias);
   renderTabla(_semana, _domingo, dias, comidas);
+  const btnG = document.getElementById('btn-guardar-sem');
+  if (btnG) btnG.style.display = _sb?.auth?.getUser ? '' : 'none';
+}
+
+async function guardarSemana() {
+  const extract = d => ({
+    apertura: PERSONAS.filter(p => ['apertura','apertura_10','doble','comp_apertura'].includes(_diasActuales[d][p])),
+    cierre:   PERSONAS.filter(p => ['cierre','doble','comp_cierre'].includes(_diasActuales[d][p])),
+  });
+  const entrada = {
+    sabado:  extract(6),
+    domingo: extract(0),
+  };
+  const historial = { ..._cache.historial, [`semana_${_semana}`]: entrada };
+  await guardarConfig('historial', historial);
+  _cache.historial = historial;
+  const btn = document.getElementById('btn-guardar-sem');
+  if (btn) { btn.textContent = '✓ Guardada'; setTimeout(() => { btn.textContent = '💾 Guardar semana'; }, 2000); }
 }
 
 function navSemana(delta) {
