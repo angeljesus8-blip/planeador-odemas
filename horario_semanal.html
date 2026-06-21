@@ -232,17 +232,19 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
 .prox-table th { background: var(--gris-fondo); padding: 6px 8px; text-align: left; border-bottom: 2px solid var(--borde); font-size: 10px; color: var(--gris-sub); font-weight: 600; }
 .prox-table td { padding: 6px 6px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
 .prox-nombre { font-weight: 600; font-size: 11px; min-width: 130px; }
-.prox-esp { min-width: 340px; }
+.prox-esp { min-width: 200px; }
 .dia-check { display: inline-flex; flex-direction: column; align-items: center; margin-right: 4px; font-size: 9px; color: var(--gris-sub); cursor: pointer; gap: 2px; }
 .dia-check input { cursor: pointer; }
-.esp-day-wrap { display:inline-flex; flex-direction:column; align-items:center; margin-right:4px; font-size:9px; color:var(--gris-sub); gap:2px; }
-.esp-day-wrap select { font-size:9px; padding:1px 2px; border:1px solid var(--borde); border-radius:3px; background:#fff; cursor:pointer; max-width:42px; }
+.esp-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; min-width:340px; }
+.esp-day-wrap { display:flex; flex-direction:column; align-items:stretch; font-size:10px; color:var(--gris-sub); gap:2px; }
+.esp-day-wrap .esp-lbl { text-align:center; font-size:9px; font-weight:600; }
+.esp-day-wrap select { font-size:10px; padding:3px 4px; border:1px solid var(--borde); border-radius:4px; background:#fff; cursor:pointer; width:100%; }
 .esp-day-wrap select.sel-ap { background:#E8F5E9; }
 .esp-day-wrap select.sel-ci { background:#FBE9E7; }
-.esp-day-wrap select.sel-pm { background:#E8F5E9; }
+.esp-day-wrap select.sel-pm { background:#EDE7F6; color:#4A148C; }
 .esp-day-wrap select.sel-cap { background:#FFF8E1; }
-.cap-times { display:flex; gap:2px; margin-top:2px; }
-.cap-times input[type=time] { font-size:8px; width:58px; border:1px solid var(--borde); border-radius:3px; padding:1px 2px; }
+.cap-times { display:flex; flex-direction:column; gap:2px; margin-top:2px; }
+.cap-times input[type=time] { font-size:9px; width:100%; border:1px solid var(--borde); border-radius:3px; padding:2px 4px; }
 </style>
 </head>
 <body>
@@ -683,12 +685,12 @@ function renderFormProxima() {
     const vacDias = getVacDias(p.key);
     const enVac  = vacDias.length > 0;
     const descV  = excSem.descanso_override?.[p.key] ?? p.descFijo;
-    const espCell = `<td class="prox-esp">${[0,1,2,3,4,5,6].map(d => {
+    const espCell = `<td class="prox-esp"><div class="esp-grid">${[0,1,2,3,4,5,6].map(d => {
       const val = getEspVal(p.key, d);
       const cap = val === 'capacitacion' ? getCapTimes(p.key, d) : null;
       const cls = val==='apertura'?'sel-ap':val==='cierre'?'sel-ci':val==='permiso'?'sel-pm':val==='capacitacion'?'sel-cap':'';
       return `<div class="esp-day-wrap">
-        <span>${DIAS_NOMBRES[d].charAt(0)}</span>
+        <span class="esp-lbl">${DIAS_NOMBRES[d].slice(0,3)}</span>
         <select class="esp-sel ${cls}" data-persona="${p.key}" data-dia="${d}" onchange="onEspChange(this)" title="${val?({'apertura':'Forzar apertura','cierre':'Forzar cierre','permiso':'Permiso','capacitacion':'Capacitación'}[val]||''):'Sin solicitud'}">
           <option value="">Normal</option>
           <option value="apertura"${val==='apertura'?' selected':''}>Apertura</option>
@@ -701,7 +703,7 @@ function renderFormProxima() {
           <input type="time" class="cap-s" data-persona="${p.key}" data-dia="${d}" value="${cap?.salida||'14:00'}">
         </div>
       </div>`;
-    }).join('')}</td>`;
+    }).join('')}</div></td>`;
     return `<tr>
       <td class="prox-nombre">${p.nombre.split(' ').slice(0,2).join(' ')}</td>
       <td style="text-align:center">
