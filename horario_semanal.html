@@ -1041,7 +1041,7 @@ function renderTabla(semana, domingo, dias, comidas) {
   document.getElementById('badge-semana').textContent =
     `${prefijo}Semana ${semana}  ·  ${fi.getDate()}–${ff.getDate()} ${fi.toLocaleString('es-MX',{month:'short'})} ${fi.getFullYear()}`;
 
-  const notaPie = PERSONAS.map(p => {
+  const notaPie = PERSONAS.filter(p => !EQUIPO[p].vacante).map(p => {
     const df = EQUIPO[p].descFijo;
     const dia = (df == null || df === -1) ? 'Variable' : (DIAS_NOMBRES[df] || 'Variable');
     return `<strong>${EQUIPO[p].nombre.split(' ')[0]}:</strong> ${dia}`;
