@@ -389,9 +389,40 @@ const EQUIPO_DEFAULT = {
 let _equipoData = null;
 let EQUIPO = {}, PERSONAS = [], GERENTES = [], ASESORES = [];
 const DIAS_NOMBRES = ['Domingo','Lunes','Martes',`Miércoles`,'Jueves','Viernes','Sábado'];
+let _H_OPEN = 10, _H_CLOSE = 21;
+
+function fmtH(h) {
+  const hh = Math.floor(h), mm = Math.round((h - hh) * 60);
+  return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+}
+
+function buildTurnoInfo(hOpen, hClose) {
+  const gAp = hOpen, gCi = hClose - 8.5, gCo = hClose - 7;
+  const aAp = hOpen + 1, aA10 = hOpen, aCi = hClose - 8.5;
+  TURNO_INFO = {
+    ger: {
+      apertura:      { label: `APERTURA ${fmtH(gAp)}–${fmtH(gAp+9)}`,      cls: 'apertura', entrada: gAp  },
+      cierre:        { label: `CIERRE ${fmtH(gCi)}–${fmtH(hClose)}`,        cls: 'cierre',   entrada: gCi  },
+      doble:         { label: `TURNO DOBLE ${fmtH(hOpen)}–${fmtH(hClose)}`, cls: 'doble',    entrada: hOpen },
+      comp_apertura: { label: `APERTURA ${fmtH(gAp)}–${fmtH(gAp+7)}`,      cls: 'comp',     entrada: gAp  },
+      comp_cierre:   { label: `CIERRE ${fmtH(gCo)}–${fmtH(hClose)}`,       cls: 'comp',     entrada: gCo  },
+    },
+    as: {
+      apertura:    { label: `APERTURA ${fmtH(aAp)}–${fmtH(aAp+9)}`,   cls: 'apertura', entrada: aAp,  ls1: `${fmtH(hOpen+2)} a ${fmtH(hOpen+2.333)}`,  ls2: `${fmtH(hOpen+7)} a ${fmtH(hOpen+7.333)}`  },
+      apertura_10: { label: `APERTURA ${fmtH(aA10)}–${fmtH(aA10+9)}`, cls: 'apertura', entrada: aA10, ls1: `${fmtH(hOpen+2)} a ${fmtH(hOpen+2.333)}`,  ls2: `${fmtH(hOpen+7)} a ${fmtH(hOpen+7.333)}`  },
+      cierre:      { label: `CIERRE ${fmtH(aCi)}–${fmtH(hClose)}`,    cls: 'cierre',   entrada: aCi,  ls1: `${fmtH(hOpen+4)} a ${fmtH(hOpen+4.333)}`,  ls2: `${fmtH(hOpen+8.5)} a ${fmtH(hOpen+8.833)}` },
+    }
+  };
+}
+
+let TURNO_INFO = {};
+buildTurnoInfo(_H_OPEN, _H_CLOSE);
 
 function aplicarEquipo(data) {
   _equipoData = data || EQUIPO_DEFAULT;
+  _H_OPEN  = _equipoData.horaApertura ?? 10;
+  _H_CLOSE = _equipoData.horaCierre   ?? 21;
+  buildTurnoInfo(_H_OPEN, _H_CLOSE);
   GERENTES = _equipoData.gerentes.map(g => g.key);
   ASESORES = _equipoData.asesores.map(a => a.key);
   PERSONAS = [...GERENTES, ...ASESORES];
@@ -525,8 +556,25 @@ function renderFormEquipo() {
     <td><select class="eq-input eq-short" data-campo="descFijo">${dOpts(a.descFijo)}</select></td>
     <td><input class="eq-input eq-short" data-campo="key" value="${a.key}"></td>
     <td><button class="btn-quitar-as" onclick="this.closest('tr').remove()">✕</button></td></tr>`;
-  const pinActual = eq.pin || '';
+  const pinActual   = eq.pin || '';
+  const hAp = eq.horaApertura ?? 10;
+  const hCi = eq.horaCierre   ?? 21;
+  const hOpts = (sel, min, max) => Array.from({length: max-min+1}, (_,i) => i+min)
+    .map(h => `<option value="${h}"${h===sel?' selected':''}>${String(h).padStart(2,'0')}:00</option>`).join('');
   document.getElementById('admin-equipo-area').innerHTML = `
+    <div class="eq-section">
+      <h4>Horario de la tienda</h4>
+      <p style="font-size:11px;color:#888;margin-bottom:8px">Los turnos de apertura y cierre se calculan automáticamente</p>
+      <div style="display:flex;gap:16px;align-items:center;">
+        <label style="font-size:12px;font-weight:600;">Apertura
+          <select class="eq-input eq-short" id="inp-hora-apertura" style="margin-left:6px;" onchange="actualizarPreviewTurnos()">${hOpts(hAp,6,14)}</select>
+        </label>
+        <label style="font-size:12px;font-weight:600;">Cierre
+          <select class="eq-input eq-short" id="inp-hora-cierre" style="margin-left:6px;" onchange="actualizarPreviewTurnos()">${hOpts(hCi,18,24)}</select>
+        </label>
+        <span id="preview-turnos" style="font-size:11px;color:#555;"></span>
+      </div>
+    </div>
     <div class="eq-section">
       <h4>PIN de acceso para tu equipo</h4>
       <p style="font-size:11px;color:#888;margin-bottom:8px">Tu equipo entra con este PIN — cámbialo cuando quieras revocar acceso</p>
@@ -551,8 +599,18 @@ function agregarAsesor() {
     <td><button class="btn-quitar-as" onclick="this.closest('tr').remove()">✕</button></td>`;
   document.getElementById('tbody-as').appendChild(tr);
 }
+function actualizarPreviewTurnos() {
+  const hO = parseInt(document.getElementById('inp-hora-apertura')?.value ?? 10);
+  const hC = parseInt(document.getElementById('inp-hora-cierre')?.value   ?? 21);
+  const el = document.getElementById('preview-turnos');
+  if (!el) return;
+  el.innerHTML = `Apertura ger: <b>${fmtH(hO)}–${fmtH(hO+9)}</b> &nbsp;·&nbsp; Cierre ger: <b>${fmtH(hC-8.5)}–${fmtH(hC)}</b> &nbsp;·&nbsp; Doble: <b>${fmtH(hO)}–${fmtH(hC)}</b>`;
+}
+
 function leerEquipoForm() {
-  const pin = document.getElementById('inp-pin-tienda')?.value.trim() || '';
+  const pin          = document.getElementById('inp-pin-tienda')?.value.trim() || '';
+  const horaApertura = parseInt(document.getElementById('inp-hora-apertura')?.value ?? 10);
+  const horaCierre   = parseInt(document.getElementById('inp-hora-cierre')?.value   ?? 21);
   const leer = id => [...document.querySelectorAll(`#${id} tr`)].map(tr => {
     const obj = {};
     tr.querySelectorAll('[data-campo]').forEach(el => {
@@ -560,7 +618,7 @@ function leerEquipoForm() {
     });
     return obj;
   }).filter(o => o.nombre && o.key);
-  return { pin, gerentes: leer('tbody-ger'), asesores: leer('tbody-as') };
+  return { pin, horaApertura, horaCierre, gerentes: leer('tbody-ger'), asesores: leer('tbody-as') };
 }
 
 // ── Formulario Próxima semana ─────────────────────────────────
@@ -684,24 +742,7 @@ async function mostrarApp() {
 //  EQUIPO — inicializado con defaults (se sobreescribe en init)
 // ============================================================
 
-// Información por turno: label, clase CSS, hora de entrada (para escalonar comidas), ley silla
-const TURNO_INFO = {
-  ger: {
-    apertura:      { label: 'APERTURA 10:00–19:00',    cls: 'apertura', entrada: 10.0 },
-    cierre:        { label: 'CIERRE 12:30–21:00',      cls: 'cierre',   entrada: 12.5 },
-    doble:         { label: 'TURNO DOBLE 10:00–21:00', cls: 'doble',    entrada: 10.0 },
-    comp_apertura: { label: 'APERTURA 10:00–17:00',    cls: 'comp',     entrada: 10.0 },
-    comp_cierre:   { label: 'CIERRE 14:00–21:00',      cls: 'comp',     entrada: 14.0 },
-  },
-  as: {
-    apertura:    { label: 'APERTURA 11:00–20:00', cls: 'apertura', entrada: 11.0, ls1: '12:00 a 12:20', ls2: '17:00 a 17:20' },
-    apertura_10: { label: 'APERTURA 10:00–19:00', cls: 'apertura', entrada: 10.0, ls1: '12:00 a 12:20', ls2: '17:00 a 17:20' },
-    cierre:      { label: 'CIERRE 12:30–21:00',   cls: 'cierre',   entrada: 12.5, ls1: '14:00 a 14:20', ls2: '18:30 a 18:50' },
-  }
-};
-
-// Calcula las comidas escalonadas desde las 13:00 según hora de entrada
-// Regla: ordena por hora de entrada (más temprano come primero), 1 hora de diferencia
+// Calcula las comidas escalonadas según hora de apertura + 3h
 function calcularComidas(dias) {
   const comidas = new Array(7).fill(null).map(() => ({}));
   for (let d = 0; d < 7; d++) {
@@ -710,18 +751,18 @@ function calcularComidas(dias) {
       const turno = dias[d][p];
       if (!turno || ['descanso','vacante','ausente'].includes(turno)) return;
       const inf = TURNO_INFO[EQUIPO[p].tipo]?.[turno];
-      if (!inf || inf.entrada === null) return; // comp_apertura: sin comida
+      if (!inf || inf.entrada === null) return;
       trabajadores.push({ p, entrada: inf.entrada, tipo: EQUIPO[p].tipo });
     });
-    // Ordena: por hora de entrada; empate → gerencia primero; empate → nombre
     trabajadores.sort((a, b) =>
       a.entrada !== b.entrada ? a.entrada - b.entrada :
       a.tipo !== b.tipo ? (a.tipo === 'ger' ? -1 : 1) :
       a.p.localeCompare(b.p)
     );
+    const base = _H_OPEN + 3;
     trabajadores.forEach(({ p }, i) => {
-      const h = 13 + i;
-      comidas[d][p] = `Com. ${h}:00 a ${h + 1}:00`;
+      const h = base + i;
+      comidas[d][p] = `Com. ${fmtH(h)} a ${fmtH(h + 1)}`;
     });
   }
   return comidas;
