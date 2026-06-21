@@ -560,10 +560,17 @@ function renderFormProxima() {
   const excSem = _datosAdmin.excepciones[`semana_${semTarget}`] || {};
   const dOpts = sel => DIAS_NOMBRES.map((n,i)=>`<option value="${i}"${i==sel?' selected':''}>${n}</option>`).join('');
   const espDe = pk => { const e = excSem.turno_especial?.[pk]; return Array.isArray(e)?e:e!=null?[e]:[]; };
+  const getVacDias = pk => {
+    const v = excSem.vacaciones;
+    if (!v) return [];
+    if (Array.isArray(v)) return v.includes(pk) ? [0,1,2,3,4,5,6] : [];
+    return Array.isArray(v[pk]) ? v[pk] : [];
+  };
   const rows = personas.map(p => {
-    const esAs  = eq.asesores.some(a => a.key === p.key);
-    const enVac = (excSem.vacaciones||[]).includes(p.key);
-    const descV = excSem.descanso_override?.[p.key] ?? p.descFijo;
+    const esAs   = eq.asesores.some(a => a.key === p.key);
+    const vacDias = getVacDias(p.key);
+    const enVac  = vacDias.length > 0;
+    const descV  = excSem.descanso_override?.[p.key] ?? p.descFijo;
     const espArr = espDe(p.key);
     const espCell = esAs
       ? `<td class="prox-esp">${[0,1,2,3,4,5,6].map(d=>
@@ -572,7 +579,12 @@ function renderFormProxima() {
       : `<td class="prox-esp" style="color:#bbb;font-size:10px;text-align:center">—</td>`;
     return `<tr>
       <td class="prox-nombre">${p.nombre.split(' ').slice(0,2).join(' ')}</td>
-      <td style="text-align:center"><input type="checkbox" class="chk-vac" data-persona="${p.key}" ${enVac?'checked':''}></td>
+      <td style="text-align:center">
+        <input type="checkbox" class="chk-vac" data-persona="${p.key}" ${enVac?'checked':''} onchange="toggleVacDias('${p.key}')">
+        <div id="vac-dias-${p.key}" style="${enVac?'':'display:none'};margin-top:4px;">
+          ${[0,1,2,3,4,5,6].map(i=>`<label style="font-size:9px;display:inline-block;margin:1px 2px;"><input type="checkbox" class="chk-vac-dia" data-persona="${p.key}" data-dia="${i}" ${vacDias.includes(i)?'checked':''}>${DIAS_NOMBRES[i].slice(0,3)}</label>`).join('')}
+        </div>
+      </td>
       <td><select class="eq-input eq-short chk-desc" data-persona="${p.key}">${dOpts(descV)}</select></td>
       ${espCell}</tr>`;
   }).join('');
@@ -587,9 +599,22 @@ function renderFormProxima() {
     </tr></thead><tbody>${rows}</tbody></table>`;
 }
 function cambiarSemProx(delta) { _semProxOffset += delta; renderFormProxima(); }
+function toggleVacDias(key) {
+  const chk = document.querySelector(`.chk-vac[data-persona="${key}"]`);
+  const div = document.getElementById(`vac-dias-${key}`);
+  if (div) div.style.display = chk.checked ? '' : 'none';
+  if (chk.checked) {
+    document.querySelectorAll(`.chk-vac-dia[data-persona="${key}"]`).forEach(c => c.checked = true);
+  }
+}
 function leerFormProxima() {
   const semTarget = _semana + _semProxOffset;
-  const vacaciones = [...document.querySelectorAll('.chk-vac:checked')].map(c => c.dataset.persona);
+  const vacaciones = {};
+  document.querySelectorAll('.chk-vac:checked').forEach(c => {
+    const p = c.dataset.persona;
+    const dias = [...document.querySelectorAll(`.chk-vac-dia[data-persona="${p}"]:checked`)].map(d => parseInt(d.dataset.dia));
+    if (dias.length) vacaciones[p] = dias;
+  });
   const descanso_override = {};
   document.querySelectorAll('.chk-desc').forEach(sel => {
     const p = sel.dataset.persona;
@@ -731,15 +756,19 @@ let _cache   = {};
 // ============================================================
 function generarSemana(semana, historial, excepciones) {
   const exc     = excepciones?.[`semana_${semana}`] || {};
-  const vac     = exc.vacaciones        || [];
+  const vacRaw  = exc.vacaciones        || {};
   const descOvr = exc.descanso_override || {};
   const espDia  = exc.turno_especial    || {};
 
   const descFijo = {};
   PERSONAS.forEach(p => { descFijo[p] = descOvr[p] ?? EQUIPO[p].descFijo; });
 
-  const enVac   = p => vac.includes(p);
-  const trabaja = (p, d) => !enVac(p) && descFijo[p] !== d;
+  const enVacDia = (p, d) => {
+    if (Array.isArray(vacRaw)) return vacRaw.includes(p); // backward compat
+    return Array.isArray(vacRaw[p]) ? vacRaw[p].includes(d) : false;
+  };
+  const enVac   = p => Array.isArray(vacRaw) ? vacRaw.includes(p) : (Array.isArray(vacRaw[p]) && vacRaw[p].length > 0);
+  const trabaja = (p, d) => !enVacDia(p, d) && descFijo[p] !== d;
   const abre    = t => t === 'apertura' || t === 'apertura_10';
   const tieneEsp = (p, d) => { const e = espDia[p]; return Array.isArray(e) ? e.includes(d) : e === d; };
 
@@ -768,7 +797,7 @@ function generarSemana(semana, historial, excepciones) {
 
   function aplicarAsig(asig, dia) {
     PERSONAS.forEach(p => {
-      if (!trabaja(p, dia))              { dias[dia][p] = enVac(p) ? 'vacante' : 'descanso'; }
+      if (!trabaja(p, dia))              { dias[dia][p] = enVacDia(p, dia) ? 'vacante' : 'descanso'; }
       else if (asig.apertura.includes(p)) { dias[dia][p] = (EQUIPO[p].tipo==='as' && tieneEsp(p,dia)) ? 'apertura_10' : 'apertura'; }
       else                               { dias[dia][p] = 'cierre'; }
     });
@@ -798,7 +827,7 @@ function generarSemana(semana, historial, excepciones) {
 
   for (let d = 1; d <= 5; d++) {
     const m    = dias[d];
-    PERSONAS.filter(p => !trabaja(p,d)).forEach(p => { m[p] = enVac(p) ? 'vacante' : 'descanso'; });
+    PERSONAS.filter(p => !trabaja(p,d)).forEach(p => { m[p] = enVacDia(p, d) ? 'vacante' : 'descanso'; });
     const gers = GERENTES.filter(p => trabaja(p,d));
     const ases = ASESORES.filter(p => trabaja(p,d));
 
