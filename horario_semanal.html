@@ -200,6 +200,32 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
 .btn-guardar:hover { opacity: .88; }
 .btn-cerrar-admin { background: #fff; color: var(--gris-sub); padding: 8px 16px; border: 1.5px solid var(--borde); border-radius: 6px; font-family: inherit; font-size: 12px; cursor: pointer; }
 .admin-msg { font-size: 11px; color: #2e7d32; margin-top: 8px; min-height: 16px; }
+
+/* ── Formulario Equipo ── */
+.eq-section { margin-bottom: 16px; }
+.eq-section h4 { font-size: 12px; font-weight: 700; color: var(--gris-txt); margin-bottom: 8px; }
+.eq-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.eq-table th { background: var(--gris-fondo); padding: 5px 6px; text-align: left; border-bottom: 2px solid var(--borde); font-size: 10px; color: var(--gris-sub); font-weight: 600; }
+.eq-table td { padding: 4px 4px; border-bottom: 1px solid var(--borde); }
+.eq-input { width: 100%; padding: 5px 7px; border: 1.5px solid var(--borde); border-radius: 4px; font-family: inherit; font-size: 11px; box-sizing: border-box; }
+.eq-input:focus { border-color: var(--azul); outline: none; }
+.eq-short { width: 90px; }
+.eq-cargo { width: 110px; }
+.btn-quitar-as { background: none; border: none; color: #c62828; cursor: pointer; font-size: 14px; padding: 2px 6px; }
+.btn-quitar-as:hover { color: var(--rojo); }
+.btn-agregar-as { margin-top: 8px; padding: 6px 14px; background: #fff; border: 1.5px dashed var(--azul); border-radius: 4px; color: var(--azul); font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+.btn-agregar-as:hover { background: #e3f2fd; }
+
+/* ── Formulario Próxima semana ── */
+.prox-header { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--gris-txt); margin-bottom: 12px; }
+.prox-header .btn-sm { padding: 2px 10px; font-size: 12px; border: 1.5px solid var(--borde); background: #fff; border-radius: 4px; cursor: pointer; }
+.prox-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.prox-table th { background: var(--gris-fondo); padding: 6px 8px; text-align: left; border-bottom: 2px solid var(--borde); font-size: 10px; color: var(--gris-sub); font-weight: 600; }
+.prox-table td { padding: 6px 6px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
+.prox-nombre { font-weight: 600; font-size: 11px; min-width: 130px; }
+.prox-esp { min-width: 200px; }
+.dia-check { display: inline-flex; flex-direction: column; align-items: center; margin-right: 4px; font-size: 9px; color: var(--gris-sub); cursor: pointer; gap: 2px; }
+.dia-check input { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -229,10 +255,16 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
   <div class="admin-box">
     <h3>Editor de datos — HES 1217</h3>
     <div class="admin-tabs">
-      <button class="tab-btn activo" onclick="cambiarTab('historial')">historial.json</button>
-      <button class="tab-btn" onclick="cambiarTab('excepciones')">excepciones.json</button>
+      <button class="tab-btn activo" data-tab="equipo"     onclick="cambiarTab('equipo')">👥 Equipo</button>
+      <button class="tab-btn"        data-tab="proxima"    onclick="cambiarTab('proxima')">📅 Próx. semana</button>
+      <button class="tab-btn"        data-tab="historial"  onclick="cambiarTab('historial')">historial</button>
+      <button class="tab-btn"        data-tab="excepciones" onclick="cambiarTab('excepciones')">excepciones</button>
     </div>
-    <textarea id="admin-textarea" spellcheck="false"></textarea>
+    <div id="admin-json-area" style="display:none">
+      <textarea id="admin-textarea" spellcheck="false"></textarea>
+    </div>
+    <div id="admin-equipo-area"></div>
+    <div id="admin-proxima-area" style="display:none"></div>
     <div class="admin-msg" id="admin-msg"></div>
     <div class="admin-actions">
       <button class="btn-cerrar-admin" onclick="cerrarAdmin()">Cancelar</button>
@@ -290,14 +322,43 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
 
 <script>
 // ============================================================
-//  SUPABASE CONFIG — reemplaza con tus valores
+//  SUPABASE
 // ============================================================
 const SUPABASE_URL = 'https://lgnyqfstmcqpkbekspte.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_j6xHlW7tSkM8iQI6O9n_LA_eL4ITb2n';
 const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let _tabAdmin = 'historial';
+let _tabAdmin = 'equipo';
+let _semProxOffset = 1;
 let _datosAdmin = { historial: {}, excepciones: {} };
+
+// ============================================================
+//  EQUIPO DINÁMICO
+// ============================================================
+const EQUIPO_DEFAULT = {
+  gerentes: [
+    { key: 'G1',  nombre: 'GERENTE',    cargo: 'Gerente',    emp: '', descFijo: 5 },
+    { key: 'G2', nombre: 'SUBGERENTE', cargo: 'Subgerente', emp: '', descFijo: 4 },
+  ],
+  asesores: [
+    { key: 'A1',  nombre: 'ASESOR 1',   cargo: 'Asesor', emp: '', descFijo: 3 },
+    { key: 'A2', nombre: 'ASESOR 2', cargo: 'Asesor', emp: '', descFijo: 1 },
+  ]
+};
+
+let _equipoData = null;
+let EQUIPO = {}, PERSONAS = [], GERENTES = [], ASESORES = [];
+const DIAS_NOMBRES = ['Domingo','Lunes','Martes',`Miércoles`,'Jueves','Viernes','Sábado'];
+
+function aplicarEquipo(data) {
+  _equipoData = data || EQUIPO_DEFAULT;
+  GERENTES = _equipoData.gerentes.map(g => g.key);
+  ASESORES = _equipoData.asesores.map(a => a.key);
+  PERSONAS = [...GERENTES, ...ASESORES];
+  EQUIPO = {};
+  _equipoData.gerentes.forEach(g => { EQUIPO[g.key] = { ...g, tipo: 'ger' }; });
+  _equipoData.asesores.forEach(a => { EQUIPO[a.key] = { ...a, tipo: 'as'  }; });
+}
 
 // ── Auth ──────────────────────────────────────────────────
 async function doLogin() {
@@ -308,11 +369,7 @@ async function doLogin() {
   if (error) { document.getElementById('login-error').textContent = 'Correo o contraseña incorrectos.'; return; }
   mostrarApp();
 }
-
-async function doLogout() {
-  await _sb.auth.signOut();
-  location.reload();
-}
+async function doLogout() { await _sb.auth.signOut(); location.reload(); }
 
 // ── Datos Supabase ────────────────────────────────────────
 async function cargarConfig(clave) {
@@ -322,7 +379,6 @@ async function cargarConfig(clave) {
     .select('contenido').eq('user_id', user.id).eq('clave', clave).maybeSingle();
   return data?.contenido ?? null;
 }
-
 async function guardarConfig(clave, contenido) {
   const user = (await _sb.auth.getUser()).data.user;
   if (!user) return;
@@ -336,45 +392,158 @@ async function guardarConfig(clave, contenido) {
 async function abrirAdmin() {
   _datosAdmin.historial   = await cargarConfig('historial')   ?? {};
   _datosAdmin.excepciones = await cargarConfig('excepciones') ?? {};
-  _tabAdmin = 'historial';
-  actualizarTab();
+  _semProxOffset = 1;
+  cambiarTab('equipo');
   document.getElementById('modal-admin').classList.add('activo');
 }
-
 function cerrarAdmin() {
   document.getElementById('modal-admin').classList.remove('activo');
   document.getElementById('admin-msg').textContent = '';
 }
-
 function cambiarTab(tab) {
   _tabAdmin = tab;
-  actualizarTab();
-}
-
-function actualizarTab() {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activo'));
-  document.querySelectorAll('.tab-btn').forEach(b => {
-    if (b.textContent.includes(_tabAdmin)) b.classList.add('activo');
-  });
-  document.getElementById('admin-textarea').value =
-    JSON.stringify(_datosAdmin[_tabAdmin], null, 2);
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('activo', b.dataset.tab === tab));
+  const esJSON = ['historial','excepciones'].includes(tab);
+  document.getElementById('admin-json-area').style.display   = esJSON          ? '' : 'none';
+  document.getElementById('admin-equipo-area').style.display  = tab==='equipo'  ? '' : 'none';
+  document.getElementById('admin-proxima-area').style.display = tab==='proxima' ? '' : 'none';
   document.getElementById('admin-msg').textContent = '';
+  if (esJSON)             document.getElementById('admin-textarea').value = JSON.stringify(_datosAdmin[tab], null, 2);
+  else if (tab==='equipo')  renderFormEquipo();
+  else if (tab==='proxima') renderFormProxima();
 }
 
+// ── Formulario Equipo ─────────────────────────────────────
+function renderFormEquipo() {
+  const eq = _equipoData || EQUIPO_DEFAULT;
+  const dOpts = sel => DIAS_NOMBRES.map((n,i)=>`<option value="${i}"${i==sel?' selected':''}>${n}</option>`).join('');
+  const rowG = (g,idx) => `<tr data-tipo="ger" data-idx="${idx}">
+    <td><input class="eq-input" data-campo="nombre" value="${g.nombre}"></td>
+    <td><input class="eq-input eq-cargo" data-campo="cargo" value="${g.cargo}"></td>
+    <td><input class="eq-input eq-short" data-campo="emp" value="${g.emp}"></td>
+    <td><select class="eq-input eq-short" data-campo="descFijo">${dOpts(g.descFijo)}</select></td>
+    <td><input class="eq-input eq-short" data-campo="key" value="${g.key}"></td></tr>`;
+  const rowA = (a,idx) => `<tr data-tipo="as" data-idx="${idx}">
+    <td><input class="eq-input" data-campo="nombre" value="${a.nombre}"></td>
+    <td><input class="eq-input eq-cargo" data-campo="cargo" value="${a.cargo||'Asesor'}"></td>
+    <td><input class="eq-input eq-short" data-campo="emp" value="${a.emp}"></td>
+    <td><select class="eq-input eq-short" data-campo="descFijo">${dOpts(a.descFijo)}</select></td>
+    <td><input class="eq-input eq-short" data-campo="key" value="${a.key}"></td>
+    <td><button class="btn-quitar-as" onclick="this.closest('tr').remove()">✕</button></td></tr>`;
+  document.getElementById('admin-equipo-area').innerHTML = `
+    <div class="eq-section"><h4>Gerentes <span style="font-weight:400;color:#888">(siempre 2)</span></h4>
+      <table class="eq-table"><thead><tr><th>Nombre completo</th><th>Cargo</th><th>#Emp</th><th>Descanso fijo</th><th>ID</th></tr></thead>
+      <tbody id="tbody-ger">${eq.gerentes.map(rowG).join('')}</tbody></table></div>
+    <div class="eq-section"><h4>Asesores</h4>
+      <table class="eq-table"><thead><tr><th>Nombre completo</th><th>Cargo</th><th>#Emp</th><th>Descanso fijo</th><th>ID</th><th></th></tr></thead>
+      <tbody id="tbody-as">${eq.asesores.map(rowA).join('')}</tbody></table>
+      <button class="btn-agregar-as" onclick="agregarAsesor()">+ Agregar asesor</button></div>`;
+}
+function agregarAsesor() {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input class="eq-input" data-campo="nombre" placeholder="Nombre completo"></td>
+    <td><input class="eq-input eq-cargo" data-campo="cargo" value="Asesor"></td>
+    <td><input class="eq-input eq-short" data-campo="emp" placeholder="#Emp"></td>
+    <td><select class="eq-input eq-short" data-campo="descFijo">${DIAS_NOMBRES.map((n,i)=>`<option value="${i}">${n}</option>`).join('')}</select></td>
+    <td><input class="eq-input eq-short" data-campo="key" placeholder="ID (ej: Carlos)"></td>
+    <td><button class="btn-quitar-as" onclick="this.closest('tr').remove()">✕</button></td>`;
+  document.getElementById('tbody-as').appendChild(tr);
+}
+function leerEquipoForm() {
+  const leer = id => [...document.querySelectorAll(`#${id} tr`)].map(tr => {
+    const obj = {};
+    tr.querySelectorAll('[data-campo]').forEach(el => {
+      obj[el.dataset.campo] = el.tagName==='SELECT' ? parseInt(el.value) : el.value.trim();
+    });
+    return obj;
+  }).filter(o => o.nombre && o.key);
+  return { gerentes: leer('tbody-ger'), asesores: leer('tbody-as') };
+}
+
+// ── Formulario Próxima semana ─────────────────────────────────
+function renderFormProxima() {
+  const eq = _equipoData || EQUIPO_DEFAULT;
+  const personas = [...eq.gerentes, ...eq.asesores];
+  const semTarget = _semana + _semProxOffset;
+  const excSem = _datosAdmin.excepciones[`semana_${semTarget}`] || {};
+  const dOpts = sel => DIAS_NOMBRES.map((n,i)=>`<option value="${i}"${i==sel?' selected':''}>${n}</option>`).join('');
+  const espDe = pk => { const e = excSem.turno_especial?.[pk]; return Array.isArray(e)?e:e!=null?[e]:[]; };
+  const rows = personas.map(p => {
+    const esAs  = eq.asesores.some(a => a.key === p.key);
+    const enVac = (excSem.vacaciones||[]).includes(p.key);
+    const descV = excSem.descanso_override?.[p.key] ?? p.descFijo;
+    const espArr = espDe(p.key);
+    const espCell = esAs
+      ? `<td class="prox-esp">${[0,1,2,3,4,5,6].map(d=>
+          `<label class="dia-check"><input type="checkbox" class="chk-esp" data-persona="${p.key}" data-dia="${d}" ${espArr.includes(d)?'checked':''}>
+           <span>${DIAS_NOMBRES[d].slice(0,3)}</span></label>`).join('')}</td>`
+      : `<td class="prox-esp" style="color:#bbb;font-size:10px;text-align:center">—</td>`;
+    return `<tr>
+      <td class="prox-nombre">${p.nombre.split(' ').slice(0,2).join(' ')}</td>
+      <td style="text-align:center"><input type="checkbox" class="chk-vac" data-persona="${p.key}" ${enVac?'checked':''}></td>
+      <td><select class="eq-input eq-short chk-desc" data-persona="${p.key}">${dOpts(descV)}</select></td>
+      ${espCell}</tr>`;
+  }).join('');
+  document.getElementById('admin-proxima-area').innerHTML = `
+    <div class="prox-header">Semana
+      <button class="btn-sm" onclick="cambiarSemProx(-1)">◄</button>
+      <strong id="num-sem-prox">${semTarget}</strong>
+      <button class="btn-sm" onclick="cambiarSemProx(1)">►</button>
+    </div>
+    <table class="prox-table"><thead><tr>
+      <th>Integrante</th><th>Vacaciones</th><th>Descanso</th><th>Turno 10:00 — días (asesores)</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+function cambiarSemProx(delta) { _semProxOffset += delta; renderFormProxima(); }
+function leerFormProxima() {
+  const semTarget = _semana + _semProxOffset;
+  const vacaciones = [...document.querySelectorAll('.chk-vac:checked')].map(c => c.dataset.persona);
+  const descanso_override = {};
+  document.querySelectorAll('.chk-desc').forEach(sel => {
+    const p = sel.dataset.persona;
+    const persona = [...(_equipoData||EQUIPO_DEFAULT).gerentes,...(_equipoData||EQUIPO_DEFAULT).asesores].find(x=>x.key===p);
+    const val = parseInt(sel.value);
+    if (persona && val !== persona.descFijo) descanso_override[p] = val;
+  });
+  const turno_especial = {};
+  document.querySelectorAll('.chk-esp:checked').forEach(c => {
+    const p = c.dataset.persona, d = parseInt(c.dataset.dia);
+    if (!turno_especial[p]) turno_especial[p] = [];
+    turno_especial[p].push(d);
+  });
+  return { semana: semTarget, data: { vacaciones, descanso_override, turno_especial } };
+}
+
+// ── Guardar admin ─────────────────────────────────────────
 async function guardarAdmin() {
-  const txt = document.getElementById('admin-textarea').value;
-  let parsed;
-  try { parsed = JSON.parse(txt); }
-  catch { document.getElementById('admin-msg').textContent = '⚠ JSON inválido — revisa la sintaxis.';
-          document.getElementById('admin-msg').style.color = '#c62828'; return; }
-  _datosAdmin[_tabAdmin] = parsed;
-  await guardarConfig(_tabAdmin, parsed);
-  document.getElementById('admin-msg').textContent = '✓ Guardado correctamente.';
-  document.getElementById('admin-msg').style.color = '#2e7d32';
-  setTimeout(() => { cerrarAdmin(); init(); }, 1200);
+  const msg = document.getElementById('admin-msg');
+  try {
+    if (_tabAdmin === 'equipo') {
+      const eq = leerEquipoForm();
+      if (eq.gerentes.length !== 2) { msg.textContent='⚠ Se requieren exactamente 2 gerentes.'; msg.style.color='#c62828'; return; }
+      if (eq.asesores.length === 0) { msg.textContent='⚠ Agrega al menos 1 asesor.'; msg.style.color='#c62828'; return; }
+      await guardarConfig('equipo', eq); aplicarEquipo(eq);
+      msg.textContent='✓ Equipo guardado.'; msg.style.color='#2e7d32';
+    } else if (_tabAdmin === 'proxima') {
+      const { semana: sem, data } = leerFormProxima();
+      const exc = { ..._datosAdmin.excepciones, [`semana_${sem}`]: data };
+      _datosAdmin.excepciones = exc;
+      await guardarConfig('excepciones', exc);
+      msg.textContent=`✓ Semana ${sem} guardada.`; msg.style.color='#2e7d32';
+    } else {
+      let parsed;
+      try { parsed = JSON.parse(document.getElementById('admin-textarea').value); }
+      catch { msg.textContent='⚠ JSON inválido.'; msg.style.color='#c62828'; return; }
+      _datosAdmin[_tabAdmin] = parsed;
+      await guardarConfig(_tabAdmin, parsed);
+      msg.textContent='✓ Guardado.'; msg.style.color='#2e7d32';
+    }
+    setTimeout(() => { cerrarAdmin(); init(); }, 1000);
+  } catch(e) { msg.textContent='⚠ Error: '+e.message; msg.style.color='#c62828'; }
 }
 
-// ── Mostrar/ocultar app ───────────────────────────────────
+// ── Mostrar app ───────────────────────────────────────────
 async function mostrarApp() {
   const { data: { user } } = await _sb.auth.getUser();
   if (!user) return;
@@ -385,15 +554,8 @@ async function mostrarApp() {
 }
 
 // ============================================================
-//  CONSTANTES DEL EQUIPO
+//  EQUIPO — inicializado con defaults (se sobreescribe en init)
 // ============================================================
-const EQUIPO = {
-  Angel:   { nombre: 'GERENTE',    cargo: 'Gerente',    emp: '', tipo: 'ger', descFijo: 5 },
-  Miguel:  { nombre: 'SUBGERENTE', cargo: 'Subgerente', emp: '', tipo: 'ger', descFijo: 4 },
-  Arturo:  { nombre: 'ASESOR 1',         cargo: 'Asesor',     emp: '', tipo: 'as',  descFijo: 3 },
-  Arnulfo: { nombre: 'ASESOR 2',      cargo: 'Asesor',     emp: '', tipo: 'as',  descFijo: 1 },
-};
-const PERSONAS = ['G1', 'G2', 'A1', 'A2'];
 
 // Información por turno: label, clase CSS, hora de entrada (para escalonar comidas), ley silla
 const TURNO_INFO = {
@@ -473,179 +635,121 @@ const _domingo = FECHA_DOMINGO_OVERRIDE ?? _base.domingo;
 const _semana  = SEMANA_OVERRIDE        ?? _base.semana;
 
 // ============================================================
-//  MOTOR DE ROTACIÓN
+//  MOTOR DE ROTACIÓN (N asesores)
 // ============================================================
 function generarSemana(semana, historial, excepciones) {
-  const exc       = excepciones?.[`semana_${semana}`] || {};
-  const vac       = exc.vacaciones        || [];
-  const descOvr   = exc.descanso_override || {};
-  const descExtra = exc.descanso_extra    || {}; // { Miguel: 2 } = descanso adicional por vacaciones de compañero
-  const espDia    = exc.turno_especial    || {}; // { Arturo: 2 } = Arturo entra 10:00 el martes
+  const exc     = excepciones?.[`semana_${semana}`] || {};
+  const vac     = exc.vacaciones        || [];
+  const descOvr = exc.descanso_override || {};
+  const espDia  = exc.turno_especial    || {};
 
-  const desc = {
-    Angel:   descOvr.Angel   ?? 5,
-    Miguel:  descOvr.Miguel  ?? 4,
-    Arturo:  descOvr.Arturo  ?? 3,
-    Arnulfo: descOvr.Arnulfo ?? 1,
-  };
+  const descFijo = {};
+  PERSONAS.forEach(p => { descFijo[p] = descOvr[p] ?? EQUIPO[p].descFijo; });
 
-  // trabaja = false si vacaciones, descanso fijo/override, o descanso adicional por vacaciones
-  const trabaja = (p, d) => !vac.includes(p) && desc[p] !== d && descExtra[p] !== d;
+  const enVac   = p => vac.includes(p);
+  const trabaja = (p, d) => !enVac(p) && descFijo[p] !== d;
+  const abre    = t => t === 'apertura' || t === 'apertura_10';
+  const tieneEsp = (p, d) => { const e = espDia[p]; return Array.isArray(e) ? e.includes(d) : e === d; };
 
-  // ── Sat/Dom desde historial (regla inversa) ──────────────
   const histPrev = historial?.[`semana_${semana - 1}`];
 
   function invertir(asig, dia) {
-    const todos  = PERSONAS.filter(p => trabaja(p, dia));
-    const ap     = (asig?.cierre   || []).filter(p => trabaja(p, dia));
-    const ci     = (asig?.apertura || []).filter(p => trabaja(p, dia));
-    // Cualquier trabajador no asignado va a cierre (prioridad)
+    const todos = PERSONAS.filter(p => trabaja(p, dia));
+    const ap    = (asig?.cierre   || []).filter(p => trabaja(p, dia));
+    const ci    = (asig?.apertura || []).filter(p => trabaja(p, dia));
     todos.forEach(p => { if (!ap.includes(p) && !ci.includes(p)) ci.push(p); });
     return { apertura: ap, cierre: ci };
   }
 
-  const domAsig = histPrev?.domingo
-    ? invertir(histPrev.domingo, 0)
-    : { apertura: PERSONAS.filter(p => trabaja(p,0) && (p==='G1'||p==='A2')),
-        cierre:   PERSONAS.filter(p => trabaja(p,0) && (p==='G2'||p==='A1')) };
+  function splitDefault(dia, gerAbreIdx) {
+    const avail = PERSONAS.filter(p => trabaja(p, dia));
+    return {
+      apertura: avail.filter((_, i) => i % 2 === gerAbreIdx % 2),
+      cierre:   avail.filter((_, i) => i % 2 !== gerAbreIdx % 2),
+    };
+  }
 
-  const sabAsig = histPrev?.sabado
-    ? invertir(histPrev.sabado, 6)
-    : { apertura: PERSONAS.filter(p => trabaja(p,6) && (p==='G2'||p==='A2')),
-        cierre:   PERSONAS.filter(p => trabaja(p,6) && (p==='G1'||p==='A1')) };
+  const domAsig = histPrev?.domingo ? invertir(histPrev.domingo, 0) : splitDefault(0, 0);
+  const sabAsig = histPrev?.sabado  ? invertir(histPrev.sabado,  6) : splitDefault(6, 1);
 
-  // ── Inicializar días ─────────────────────────────────────
   const dias = new Array(7).fill(null).map(() => ({}));
 
   function aplicarAsig(asig, dia) {
     PERSONAS.forEach(p => {
-      if (!trabaja(p, dia))         { dias[dia][p] = vac.includes(p) ? 'vacante' : 'descanso'; }
-      else if (asig.apertura.includes(p)) {
-        dias[dia][p] = (EQUIPO[p].tipo === 'as' && espDia[p] === dia) ? 'apertura_10' : 'apertura';
-      } else {
-        dias[dia][p] = 'cierre';
-      }
+      if (!trabaja(p, dia))              { dias[dia][p] = enVac(p) ? 'vacante' : 'descanso'; }
+      else if (asig.apertura.includes(p)) { dias[dia][p] = (EQUIPO[p].tipo==='as' && tieneEsp(p,dia)) ? 'apertura_10' : 'apertura'; }
+      else                               { dias[dia][p] = 'cierre'; }
     });
   }
 
-  // Domingo (0) y Sábado (6) desde historial
   aplicarAsig(domAsig, 0);
   aplicarAsig(sabAsig, 6);
 
-  // ── Garantía fin de semana: Arturo y Arnulfo no repiten turno Sáb↔Dom ───
-  {
-    const _aFDS = ['A1', 'A2'].filter(p =>
-      dias[0][p] !== 'descanso' && dias[0][p] !== 'vacante' &&
-      dias[6][p] !== 'descanso' && dias[6][p] !== 'vacante'
-    );
-    if (_aFDS.length === 2) {
-      const abre = t => t === 'apertura' || t === 'apertura_10';
-      const [a, b] = _aFDS;
-      if (abre(dias[0][a]) === abre(dias[6][a])) {
-        // Mismo turno Sáb y Dom → intercambiar domingo
-        [dias[0][a], dias[0][b]] = [dias[0][b], dias[0][a]];
-      }
-    }
+  // Garantía fin de semana: asesores no repiten turno Sáb↔Dom
+  const asesFDS = ASESORES.filter(p =>
+    !['descanso','vacante'].includes(dias[0][p]) && !['descanso','vacante'].includes(dias[6][p])
+  );
+  for (let i = 0; i < asesFDS.length - 1; i++) {
+    const [a, b] = [asesFDS[i], asesFDS[i+1]];
+    if (abre(dias[0][a]) === abre(dias[6][a])) { [dias[0][a], dias[0][b]] = [dias[0][b], dias[0][a]]; break; }
   }
 
-  // ── Balance semanal asesores (aperturas - cierres) ───────
-  const balAs = { Arturo: 0, Arnulfo: 0 };
-  for (const p of ['A1', 'A2']) {
-    if (dias[0][p] === 'apertura' || dias[0][p] === 'apertura_10') balAs[p]++;
-    else if (dias[0][p] === 'cierre') balAs[p]--;
-  }
+  // Balance asesores desde domingo
+  const balAs = {};
+  ASESORES.forEach(p => {
+    balAs[p] = 0;
+    if (!['descanso','vacante'].includes(dias[0][p])) balAs[p] += abre(dias[0][p]) ? 1 : -1;
+  });
 
-  // ── Cadena anti-colisión Dom → Lun…Vie ──────────────────
-  let prevGerCierra  = domAsig.cierre.find(p => EQUIPO[p].tipo === 'ger')  ?? 'G1';
-  // Re-derivar desde dias[0] por si se hizo swap de domingo
-  let prevAsesCierra = ['A1', 'A2'].find(p => dias[0][p] === 'cierre') ?? 'A1';
+  let prevGerCierra  = domAsig.cierre.find(p => EQUIPO[p]?.tipo==='ger') ?? GERENTES[0];
+  let prevAsesCierra = ASESORES.find(p => dias[0][p]==='cierre') ?? ASESORES[0];
 
   for (let d = 1; d <= 5; d++) {
-    const m   = dias[d];
-    const trb = PERSONAS.filter(p => trabaja(p, d));
-    const rst = PERSONAS.filter(p => !trabaja(p, d));
-    rst.forEach(p => m[p] = vac.includes(p) ? 'vacante' : 'descanso');
+    const m    = dias[d];
+    PERSONAS.filter(p => !trabaja(p,d)).forEach(p => { m[p] = enVac(p) ? 'vacante' : 'descanso'; });
+    const gers = GERENTES.filter(p => trabaja(p,d));
+    const ases = ASESORES.filter(p => trabaja(p,d));
 
-    const gers = trb.filter(p => EQUIPO[p].tipo === 'ger');
-    const ases = trb.filter(p => EQUIPO[p].tipo === 'as');
-
+    // Gerentes
     if (gers.length === 1) {
-      // Solo un gerente disponible → DOBLE (cubre todo el día)
-      m[gers[0]] = 'doble';
-      prevGerCierra = gers[0];
-      // Asesores rotan con balance (el gerente cubre apertura y cierre)
-      if (ases.length === 2) {
-        const tieneEsp = p => { const e = espDia[p]; return Array.isArray(e) ? e.includes(d) : e === d; };
-        const asEsp = ases.find(tieneEsp);
-        let asAbre, asCierra;
-        if (asEsp) {
-          asAbre   = asEsp;
-          asCierra = ases.find(p => p !== asEsp);
-        } else {
-          const pref  = ases.find(p => p === prevAsesCierra) ?? ases[0];
-          const other = ases.find(p => p !== pref) ?? ases[1];
-          if (balAs[pref] - balAs[other] >= 2) { asAbre = other; asCierra = pref; }
-          else                                  { asAbre = pref;  asCierra = other; }
-        }
-        m[asAbre]   = tieneEsp(asAbre) ? 'apertura_10' : 'apertura';
-        m[asCierra] = 'cierre';
-        balAs[asAbre]++;  balAs[asCierra]--;
-        prevAsesCierra = asCierra;
-      } else if (ases.length === 1) {
-        m[ases[0]] = 'cierre';
-        balAs[ases[0]]--;
-        prevAsesCierra = ases[0];
-      }
-
-    } else if (gers.length === 2) {
-      // Dos gerentes → rotación anti-colisión
-      const gerAbre   = gers.find(p => p === prevGerCierra) ?? gers[0];
-      const gerCierra = gers.find(p => p !== gerAbre) ?? gers[1];
-      m[gerAbre]   = 'apertura';
-      m[gerCierra] = 'cierre';
-      prevGerCierra = gerCierra;
-
-      if (ases.length === 2) {
-        const tieneEsp = p => { const e = espDia[p]; return Array.isArray(e) ? e.includes(d) : e === d; };
-        const asEsp = ases.find(tieneEsp);
-        let asAbre, asCierra;
-        if (asEsp) {
-          asAbre   = asEsp;
-          asCierra = ases.find(p => p !== asEsp);
-        } else {
-          // Balance + anti-colisión: si el preferido anti-colisión tiene 2+ aperturas de ventaja, se revierte
-          const pref  = ases.find(p => p === prevAsesCierra) ?? ases[0];
-          const other = ases.find(p => p !== pref) ?? ases[1];
-          if (balAs[pref] - balAs[other] >= 2) { asAbre = other; asCierra = pref; }
-          else                                  { asAbre = pref;  asCierra = other; }
-        }
-        m[asAbre]   = tieneEsp(asAbre) ? 'apertura_10' : 'apertura';
-        m[asCierra] = 'cierre';
-        balAs[asAbre]++;  balAs[asCierra]--;
-        prevAsesCierra = asCierra;
-      } else if (ases.length === 1) {
-        // Un asesor: cierra (2 personas cierran = prioridad)
-        m[ases[0]] = 'cierre';
-        balAs[ases[0]]--;
-        prevAsesCierra = ases[0];
-      }
+      m[gers[0]] = 'doble'; prevGerCierra = gers[0];
+    } else if (gers.length >= 2) {
+      const gA = gers.find(p => p===prevGerCierra) ?? gers[0];
+      const gC = gers.find(p => p!==gA) ?? gers[1];
+      m[gA] = 'apertura'; m[gC] = 'cierre'; prevGerCierra = gC;
     }
+
+    // Asesores (N personas)
+    if (ases.length === 0) continue;
+    if (ases.length === 1) {
+      m[ases[0]] = tieneEsp(ases[0],d) ? 'apertura_10' : 'cierre';
+      balAs[ases[0]] += tieneEsp(ases[0],d) ? 1 : -1;
+      prevAsesCierra = ases[0];
+      continue;
+    }
+    const scored = ases.map(p => ({
+      p, score: (tieneEsp(p,d)?-100:0) + (p===prevAsesCierra?-3:0) - balAs[p]
+    })).sort((a,b) => a.score - b.score);
+
+    const nAbre = Math.ceil(ases.length / 2);
+    scored.forEach(({p}, i) => {
+      if (tieneEsp(p,d))  { m[p]='apertura_10'; balAs[p]++; }
+      else if (i < nAbre) { m[p]='apertura';    balAs[p]++; }
+      else                { m[p]='cierre';       balAs[p]--; }
+    });
+    const cierresF = scored.slice(nAbre).filter(s => !tieneEsp(s.p,d));
+    if (cierresF.length) prevAsesCierra = cierresF[cierresF.length-1].p;
   }
 
-  // ── Compensación gerencia ────────────────────────────────
-  // Solo aplica cuando el compañero está en DESCANSO normal, NO en vacaciones
-  for (const ger of ['G1', 'G2']) {
-    const partner = ger === 'G1' ? 'G2' : 'G1';
+  // Compensación gerencia
+  for (const ger of GERENTES) {
+    const partner = GERENTES.find(g => g !== ger);
+    if (!partner) continue;
     for (let d = 0; d <= 5; d++) {
-      if (dias[d][ger] !== 'doble') continue;
-      if (dias[d][partner] !== 'descanso') continue; // vacaciones: sin compensación
-      for (let nd = d + 1; nd <= 6; nd++) {
-        if (dias[nd][ger] === 'descanso' || dias[nd][ger] === 'vacante') continue;
-        if (dias[nd][ger] === 'apertura' || dias[nd][ger] === 'apertura_10') {
-          dias[nd][ger] = 'comp_apertura';
-        } else if (dias[nd][ger] === 'cierre') {
-          dias[nd][ger] = 'comp_cierre';
-        }
+      if (dias[d][ger]!=='doble' || dias[d][partner]!=='descanso') continue;
+      for (let nd = d+1; nd <= 6; nd++) {
+        if (['descanso','vacante'].includes(dias[nd][ger])) continue;
+        dias[nd][ger] = abre(dias[nd][ger]) ? 'comp_apertura' : 'comp_cierre';
         break;
       }
     }
@@ -715,12 +819,12 @@ function renderTabla(semana, domingo, dias, comidas) {
     html += rowL2 + '</tr>';
   }
 
-  bloquePersGer('G1');
-  bloquePersGer('G2');
-  html += '<tr class="sep-rojo"><td colspan="8"></td></tr>';
-  html += '<tr class="sep-naranja"><td colspan="8"></td></tr>';
-  bloquePersAs('A1');
-  bloquePersAs('A2');
+  GERENTES.forEach(bloquePersGer);
+  if (GERENTES.length && ASESORES.length) {
+    html += '<tr class="sep-rojo"><td colspan="8"></td></tr>';
+    html += '<tr class="sep-naranja"><td colspan="8"></td></tr>';
+  }
+  ASESORES.forEach(bloquePersAs);
 
   document.getElementById('cuerpo').innerHTML = html;
 
@@ -729,9 +833,10 @@ function renderTabla(semana, domingo, dias, comidas) {
   document.getElementById('badge-semana').textContent =
     `Semana ${semana}  ·  ${fi.getDate()}–${ff.getDate()} ${fi.toLocaleString('es-MX',{month:'short'})} ${fi.getFullYear()}`;
 
-  document.getElementById('nota-pie').innerHTML =
-    `Descansos fijos — <strong>Ángel:</strong> Viernes &nbsp;·&nbsp; <strong>Miguel:</strong> Jueves &nbsp;·&nbsp; <strong>Arturo:</strong> Miércoles &nbsp;·&nbsp; <strong>Arnulfo:</strong> Lunes`;
-
+  const notaPie = PERSONAS.map(p =>
+    `<strong>${EQUIPO[p].nombre.split(' ')[0]}:</strong> ${DIAS_NOMBRES[EQUIPO[p].descFijo]}`
+  ).join(' &nbsp;·&nbsp; ');
+  document.getElementById('nota-pie').innerHTML = `Descansos fijos — ${notaPie}`;
   document.getElementById('pie').textContent = 'Generado: ' + new Date().toLocaleString('es-MX');
 }
 
@@ -739,10 +844,12 @@ function renderTabla(semana, domingo, dias, comidas) {
 //  INICIALIZACIÓN
 // ============================================================
 async function init() {
-  const [historial, excepciones] = await Promise.all([
+  const [equipoData, historial, excepciones] = await Promise.all([
+    cargarConfig('equipo'),
     cargarConfig('historial'),
     cargarConfig('excepciones'),
   ]);
+  aplicarEquipo(equipoData);
   const dias    = generarSemana(_semana, historial, excepciones);
   const comidas = calcularComidas(dias);
   renderTabla(_semana, _domingo, dias, comidas);
