@@ -1037,8 +1037,9 @@ function renderTabla(semana, domingo, dias, comidas) {
   const fi = domingo;
   const ff = new Date(fi); ff.setDate(ff.getDate() + 6);
   const esActual  = semana === _base.semana;
+  const esPasada  = semana < _base.semana;
   const guardada  = _cache.semanas_guardadas?.[`semana_${semana}`];
-  const prefijo   = esActual ? '● Semana actual  · ' : guardada ? '📌 ' : '';
+  const prefijo   = esActual ? '● Semana actual  · ' : guardada ? '📌 ' : esPasada ? '~ Reconstruida · ' : '';
   document.getElementById('badge-semana').textContent =
     `${prefijo}Semana ${semana}  ·  ${fi.getDate()}–${ff.getDate()} ${fi.toLocaleString('es-MX',{month:'short'})} ${fi.getFullYear()}`;
 
