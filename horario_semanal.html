@@ -243,10 +243,21 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
       <button class="ltab" data-tab="eq" onclick="switchLoginTab('eq')">Ver mi horario</button>
     </div>
     <div id="login-ger">
-      <p style="font-size:11px;color:#888;margin-bottom:12px">Ingresa con tu correo y contraseña</p>
-      <input type="email" id="inp-email" placeholder="correo@ejemplo.com" autocomplete="username">
-      <input type="password" id="inp-pass" placeholder="Contraseña" autocomplete="current-password">
-      <button class="btn-login" onclick="doLogin()">Entrar</button>
+      <div id="login-ger-form">
+        <p style="font-size:11px;color:#888;margin-bottom:12px">Ingresa con tu correo y contraseña</p>
+        <input type="email" id="inp-email" placeholder="usuario@odemas.com.mx" autocomplete="username">
+        <input type="password" id="inp-pass" placeholder="Contraseña" autocomplete="current-password">
+        <button class="btn-login" onclick="doLogin()">Entrar</button>
+        <p style="font-size:11px;color:#888;margin-top:12px;text-align:center">¿Primera vez? <a href="#" onclick="mostrarRegistro();return false;" style="color:var(--rojo);font-weight:600;">Crear cuenta</a></p>
+      </div>
+      <div id="login-reg-form" style="display:none">
+        <p style="font-size:11px;color:#888;margin-bottom:12px">Solo correos <strong>@odemas.com.mx</strong></p>
+        <input type="email" id="inp-reg-email" placeholder="usuario@odemas.com.mx" autocomplete="username">
+        <input type="password" id="inp-reg-pass" placeholder="Contraseña (mín. 6 caracteres)" autocomplete="new-password">
+        <input type="password" id="inp-reg-pass2" placeholder="Confirmar contraseña" autocomplete="new-password">
+        <button class="btn-login" onclick="doRegistro()">Crear cuenta</button>
+        <p style="font-size:11px;color:#888;margin-top:12px;text-align:center"><a href="#" onclick="ocultarRegistro();return false;" style="color:var(--rojo);font-weight:600;">← Volver</a></p>
+      </div>
     </div>
     <div id="login-eq" style="display:none">
       <p style="font-size:11px;color:#888;margin-bottom:12px">Ingresa el PIN que te dio tu gerente</p>
@@ -384,6 +395,35 @@ async function doLogin() {
   mostrarApp();
 }
 async function doLogout() { await _sb.auth.signOut(); location.reload(); }
+
+function mostrarRegistro() {
+  document.getElementById('login-ger-form').style.display = 'none';
+  document.getElementById('login-reg-form').style.display = '';
+  document.getElementById('login-error').textContent = '';
+}
+function ocultarRegistro() {
+  document.getElementById('login-reg-form').style.display = 'none';
+  document.getElementById('login-ger-form').style.display = '';
+  document.getElementById('login-error').textContent = '';
+}
+
+async function doRegistro() {
+  const email = document.getElementById('inp-reg-email').value.trim();
+  const pass  = document.getElementById('inp-reg-pass').value;
+  const pass2 = document.getElementById('inp-reg-pass2').value;
+  const err   = document.getElementById('login-error');
+  err.textContent = '';
+  if (!email.toLowerCase().endsWith('@odemas.com.mx')) {
+    err.textContent = 'Solo se permiten correos @odemas.com.mx'; return;
+  }
+  if (pass.length < 6) { err.textContent = 'La contraseña debe tener al menos 6 caracteres.'; return; }
+  if (pass !== pass2)  { err.textContent = 'Las contraseñas no coinciden.'; return; }
+  const { error } = await _sb.auth.signUp({ email, password: pass });
+  if (error) { err.textContent = error.message; return; }
+  err.style.color = '#2e7d32';
+  err.textContent = 'Cuenta creada. Revisa tu correo para confirmar y luego inicia sesión.';
+  setTimeout(() => { err.style.color = ''; ocultarRegistro(); }, 4000);
+}
 
 function switchLoginTab(tab) {
   document.querySelectorAll('.ltab').forEach(b => b.classList.toggle('activo', b.dataset.tab === tab));
