@@ -970,9 +970,11 @@ function renderTabla(semana, domingo, dias, comidas) {
 
   const fi = domingo;
   const ff = new Date(fi); ff.setDate(ff.getDate() + 6);
-  const esActual = semana === _base.semana;
+  const esActual  = semana === _base.semana;
+  const guardada  = _cache.semanas_guardadas?.[`semana_${semana}`];
+  const prefijo   = esActual ? '● Semana actual  · ' : guardada ? '📌 ' : '';
   document.getElementById('badge-semana').textContent =
-    `${esActual ? '● Semana actual  · ' : ''}Semana ${semana}  ·  ${fi.getDate()}–${ff.getDate()} ${fi.toLocaleString('es-MX',{month:'short'})} ${fi.getFullYear()}`;
+    `${prefijo}Semana ${semana}  ·  ${fi.getDate()}–${ff.getDate()} ${fi.toLocaleString('es-MX',{month:'short'})} ${fi.getFullYear()}`;
 
   const notaPie = PERSONAS.map(p => {
     const df = EQUIPO[p].descFijo;
@@ -987,39 +989,48 @@ function renderTabla(semana, domingo, dias, comidas) {
 //  INICIALIZACIÓN
 // ============================================================
 async function init() {
-  const [equipoData, historial, excepciones] = await Promise.all([
+  const [equipoData, historial, excepciones, semanas_guardadas] = await Promise.all([
     cargarConfig('equipo'),
     cargarConfig('historial'),
     cargarConfig('excepciones'),
+    cargarConfig('semanas_guardadas'),
   ]);
   aplicarEquipo(equipoData);
-  _cache = { historial, excepciones };
+  _cache = { historial, excepciones, semanas_guardadas: semanas_guardadas || {} };
   renderSemana();
 }
 
 function renderSemana() {
-  const dias    = generarSemana(_semana, _cache.historial, _cache.excepciones);
+  const guardada = _cache.semanas_guardadas?.[`semana_${_semana}`];
+  const dias = guardada ? guardada.dias : generarSemana(_semana, _cache.historial, _cache.excepciones);
   _diasActuales = dias;
   const comidas = calcularComidas(dias);
   renderTabla(_semana, _domingo, dias, comidas);
   const btnG = document.getElementById('btn-guardar-sem');
-  if (btnG) btnG.style.display = _sb?.auth?.getUser ? '' : 'none';
+  if (btnG) btnG.style.display = '';
+  document.getElementById('badge-semana').dataset.guardada = guardada ? '1' : '0';
 }
 
 async function guardarSemana() {
+  // 1. Guardar Sáb/Dom en historial (base para rotación futura)
   const extract = d => ({
     apertura: PERSONAS.filter(p => ['apertura','apertura_10','doble','comp_apertura'].includes(_diasActuales[d][p])),
     cierre:   PERSONAS.filter(p => ['cierre','doble','comp_cierre'].includes(_diasActuales[d][p])),
   });
-  const entrada = {
-    sabado:  extract(6),
-    domingo: extract(0),
-  };
-  const historial = { ..._cache.historial, [`semana_${_semana}`]: entrada };
+  const historial = { ..._cache.historial, [`semana_${_semana}`]: { sabado: extract(6), domingo: extract(0) } };
   await guardarConfig('historial', historial);
   _cache.historial = historial;
+
+  // 2. Guardar horario completo en semanas_guardadas (máx 4 semanas)
+  const sg = { ..._cache.semanas_guardadas, [`semana_${_semana}`]: { dias: _diasActuales } };
+  const claves = Object.keys(sg).map(k => parseInt(k.replace('semana_',''))).sort((a,b) => b-a);
+  claves.slice(4).forEach(k => delete sg[`semana_${k}`]); // borrar más antiguas
+  await guardarConfig('semanas_guardadas', sg);
+  _cache.semanas_guardadas = sg;
+
   const btn = document.getElementById('btn-guardar-sem');
   if (btn) { btn.textContent = '✓ Guardada'; setTimeout(() => { btn.textContent = '💾 Guardar semana'; }, 2000); }
+  document.getElementById('badge-semana').dataset.guardada = '1';
 }
 
 function navSemana(delta) {
