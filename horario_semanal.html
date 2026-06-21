@@ -321,7 +321,13 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
   </div>
 </header>
 
-<div class="wrapper-tabla">
+<div id="sin-asignar" style="display:none;text-align:center;padding:60px 20px;color:var(--gris-sub);">
+  <div style="font-size:40px;margin-bottom:12px;">📋</div>
+  <div style="font-size:16px;font-weight:700;color:var(--gris-txt);margin-bottom:8px;">Horario aún sin asignar</div>
+  <div style="font-size:12px;">Configura las excepciones en <strong>📅 Próx. semana</strong> para generar este horario.</div>
+</div>
+
+<div class="wrapper-tabla" id="wrapper-tabla">
 <table>
   <thead>
     <tr>
@@ -1001,14 +1007,22 @@ async function init() {
 }
 
 function renderSemana() {
-  const guardada = _cache.semanas_guardadas?.[`semana_${_semana}`];
+  const guardada   = _cache.semanas_guardadas?.[`semana_${_semana}`];
+  const esFutura   = _semana > _base.semana;
+  const sinAsignar = esFutura && !guardada;
+
+  document.getElementById('sin-asignar').style.display   = sinAsignar ? '' : 'none';
+  document.getElementById('wrapper-tabla').style.display = sinAsignar ? 'none' : '';
+  document.getElementById('nota-pie').style.display      = sinAsignar ? 'none' : '';
+  document.getElementById('pie').style.display           = sinAsignar ? 'none' : '';
+  const btnG = document.getElementById('btn-guardar-sem');
+  if (btnG) btnG.style.display = sinAsignar ? 'none' : '';
+  if (sinAsignar) { _diasActuales = null; return; }
+
   const dias = guardada ? guardada.dias : generarSemana(_semana, _cache.historial, _cache.excepciones);
   _diasActuales = dias;
   const comidas = calcularComidas(dias);
   renderTabla(_semana, _domingo, dias, comidas);
-  const btnG = document.getElementById('btn-guardar-sem');
-  if (btnG) btnG.style.display = '';
-  document.getElementById('badge-semana').dataset.guardada = guardada ? '1' : '0';
 }
 
 async function guardarSemana() {
