@@ -922,8 +922,9 @@ function renderTabla(semana, domingo, dias, comidas) {
 
   const fi = domingo;
   const ff = new Date(fi); ff.setDate(ff.getDate() + 6);
+  const esActual = semana === _base.semana;
   document.getElementById('badge-semana').textContent =
-    `Semana ${semana}  ·  ${fi.getDate()}–${ff.getDate()} ${fi.toLocaleString('es-MX',{month:'short'})} ${fi.getFullYear()}`;
+    `${esActual ? '● Semana actual  · ' : ''}Semana ${semana}  ·  ${fi.getDate()}–${ff.getDate()} ${fi.toLocaleString('es-MX',{month:'short'})} ${fi.getFullYear()}`;
 
   const notaPie = PERSONAS.map(p => {
     const df = EQUIPO[p].descFijo;
