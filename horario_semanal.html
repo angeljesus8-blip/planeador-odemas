@@ -838,6 +838,7 @@ function generarSemana(semana, historial, excepciones) {
     PERSONAS.filter(p => !trabaja(p,d)).forEach(p => { m[p] = enVacDia(p, d) ? 'vacante' : 'descanso'; });
     const gers = GERENTES.filter(p => trabaja(p,d));
     const ases = ASESORES.filter(p => trabaja(p,d));
+    if (d === 1) console.log('DEBUG Lunes — gers:', gers, 'vacRaw:', JSON.stringify(vacRaw), 'descFijo:', JSON.stringify(descFijo), 'trabaja Angel:', trabaja('Angel',1), 'enVacDia Angel:', enVacDia('Angel',1));
 
     // Gerentes
     if (gers.length === 1) {
