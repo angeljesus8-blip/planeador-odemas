@@ -543,12 +543,18 @@ function renderFormEquipo() {
   const eq = _equipoData || EQUIPO_DEFAULT;
   const dOpts = sel => `<option value="-1"${sel===-1||sel==null?' selected':''}>Sin descanso fijo</option>` +
     DIAS_NOMBRES.map((n,i)=> i===0||i===6 ? '' : `<option value="${i}"${i==sel?' selected':''}>${n}</option>`).join('');
-  const rowG = (g,idx) => `<tr data-tipo="ger" data-idx="${idx}">
-    <td><input class="eq-input" data-campo="nombre" value="${g.nombre}"></td>
-    <td><input class="eq-input eq-cargo" data-campo="cargo" value="${g.cargo}"></td>
-    <td><input class="eq-input eq-short" data-campo="emp" value="${g.emp}"></td>
-    <td><select class="eq-input eq-short" data-campo="descFijo">${dOpts(g.descFijo)}</select></td>
-    <td><input class="eq-input eq-short" data-campo="key" value="${g.key}"></td></tr>`;
+  const rowG = (g,idx) => {
+    const esVac = !!g.vacante;
+    const dis   = esVac ? 'disabled style="opacity:.4"' : '';
+    return `<tr data-tipo="ger" data-idx="${idx}">
+    <td><input class="eq-input" data-campo="nombre" value="${esVac?'':g.nombre}" ${dis} placeholder="${esVac?'Puesto vacante':''}"></td>
+    <td><input class="eq-input eq-cargo" data-campo="cargo" value="${esVac?'':g.cargo}" ${dis}></td>
+    <td><input class="eq-input eq-short" data-campo="emp" value="${esVac?'':g.emp}" ${dis}></td>
+    <td><select class="eq-input eq-short" data-campo="descFijo" ${dis}>${dOpts(g.descFijo)}</select></td>
+    <td><input class="eq-input eq-short" data-campo="key" value="${g.key}"></td>
+    <td><label style="font-size:11px;white-space:nowrap;cursor:pointer"><input type="checkbox" data-campo="vacante" ${esVac?'checked':''} onchange="toggleVacanteGer(this)"> Vacante</label></td>
+    </tr>`;
+  };
   const rowA = (a,idx) => `<tr data-tipo="as" data-idx="${idx}">
     <td><input class="eq-input" data-campo="nombre" value="${a.nombre}"></td>
     <td><input class="eq-input eq-cargo" data-campo="cargo" value="${a.cargo||'Asesor'}"></td>
@@ -599,6 +605,16 @@ function agregarAsesor() {
     <td><button class="btn-quitar-as" onclick="this.closest('tr').remove()">✕</button></td>`;
   document.getElementById('tbody-as').appendChild(tr);
 }
+function toggleVacanteGer(chk) {
+  const tr = chk.closest('tr');
+  const esVac = chk.checked;
+  tr.querySelectorAll('[data-campo]:not([data-campo="vacante"]):not([data-campo="key"])').forEach(el => {
+    el.disabled = esVac;
+    el.style.opacity = esVac ? '.4' : '';
+    if (esVac && el.dataset.campo === 'nombre') { el.value = ''; el.placeholder = 'Puesto vacante'; }
+  });
+}
+
 function actualizarPreviewTurnos() {
   const hO = parseInt(document.getElementById('inp-hora-apertura')?.value ?? 10);
   const hC = parseInt(document.getElementById('inp-hora-cierre')?.value   ?? 21);
@@ -611,14 +627,16 @@ function leerEquipoForm() {
   const pin          = document.getElementById('inp-pin-tienda')?.value.trim() || '';
   const horaApertura = parseInt(document.getElementById('inp-hora-apertura')?.value ?? 10);
   const horaCierre   = parseInt(document.getElementById('inp-hora-cierre')?.value   ?? 21);
-  const leer = id => [...document.querySelectorAll(`#${id} tr`)].map(tr => {
+  const leer = (id, allowVacante) => [...document.querySelectorAll(`#${id} tr`)].map(tr => {
     const obj = {};
     tr.querySelectorAll('[data-campo]').forEach(el => {
-      obj[el.dataset.campo] = el.tagName==='SELECT' ? parseInt(el.value) : el.value.trim();
+      if (el.type === 'checkbox') obj[el.dataset.campo] = el.checked;
+      else obj[el.dataset.campo] = el.tagName==='SELECT' ? parseInt(el.value) : el.value.trim();
     });
+    if (allowVacante && obj.vacante) { obj.nombre = 'Puesto vacante'; obj.cargo = ''; obj.emp = ''; }
     return obj;
-  }).filter(o => o.nombre && o.key);
-  return { pin, horaApertura, horaCierre, gerentes: leer('tbody-ger'), asesores: leer('tbody-as') };
+  }).filter(o => (o.nombre && o.key) || (allowVacante && o.vacante && o.key));
+  return { pin, horaApertura, horaCierre, gerentes: leer('tbody-ger', true), asesores: leer('tbody-as', false) };
 }
 
 // ── Formulario Próxima semana ─────────────────────────────────
@@ -821,7 +839,7 @@ function generarSemana(semana, historial, excepciones) {
     return Array.isArray(vacRaw[p]) ? vacRaw[p].includes(d) : false;
   };
   const enVac   = p => Array.isArray(vacRaw) ? vacRaw.includes(p) : (Array.isArray(vacRaw[p]) && vacRaw[p].length > 0);
-  const trabaja = (p, d) => !enVacDia(p, d) && descFijo[p] !== d;
+  const trabaja = (p, d) => !EQUIPO[p].vacante && !enVacDia(p, d) && descFijo[p] !== d;
 
   // Si un gerente no trabaja ningún día de la semana, su pareja no descansa
   GERENTES.forEach(ger => {
@@ -972,7 +990,7 @@ function renderTabla(semana, domingo, dias, comidas) {
 
   function bloquePersGer(persona) {
     const eq  = EQUIPO[persona];
-    html += `<tr class="fila-persona"><td colspan="8">▌ ${eq.nombre} — ${eq.cargo} &nbsp;·&nbsp; #${eq.emp}</td></tr>`;
+    html += `<tr class="fila-persona"><td colspan="8">▌ ${eq.vacante ? '⚠ PUESTO VACANTE' : `${eq.nombre} — ${eq.cargo} &nbsp;·&nbsp; #${eq.emp}`}</td></tr>`;
     let rowH = `<tr><td class="lbl">Horario</td>`;
     let rowC = `<tr><td class="lbl">Comida</td>`;
     for (let d = 0; d < 7; d++) {
