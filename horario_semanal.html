@@ -838,17 +838,14 @@ function generarSemana(semana, historial, excepciones) {
     PERSONAS.filter(p => !trabaja(p,d)).forEach(p => { m[p] = enVacDia(p, d) ? 'vacante' : 'descanso'; });
     const gers = GERENTES.filter(p => trabaja(p,d));
     const ases = ASESORES.filter(p => trabaja(p,d));
-    if (d === 1) console.log('DEBUG Lunes — gers:', JSON.stringify(gers), 'vacRaw:', JSON.stringify(vacRaw), 'descFijo:', JSON.stringify(descFijo), 'trabaja Angel:', trabaja('G1',1));
 
     // Gerentes
     if (gers.length === 1) {
       m[gers[0]] = 'doble'; prevGerCierra = gers[0];
-      if (d===1) console.log('SET DOBLE a:', gers[0], '→ m[Miguel]=', m['G2']);
     } else if (gers.length >= 2) {
       const gA = gers.find(p => p===prevGerCierra) ?? gers[0];
       const gC = gers.find(p => p!==gA) ?? gers[1];
       m[gA] = 'apertura'; m[gC] = 'cierre'; prevGerCierra = gC;
-      if (d===1) console.log('SET 2GERS — gA:', gA, 'gC:', gC, 'prevGerCierra:', prevGerCierra);
     }
 
     // Asesores (N personas)
@@ -881,6 +878,7 @@ function generarSemana(semana, historial, excepciones) {
       if (dias[d][ger]!=='doble' || dias[d][partner]!=='descanso') continue;
       for (let nd = d+1; nd <= 6; nd++) {
         if (['descanso','vacante'].includes(dias[nd][ger])) continue;
+        if (dias[nd][ger] === 'doble') continue; // ya trabaja solo, no compensar
         dias[nd][ger] = abre(dias[nd][ger]) ? 'comp_apertura' : 'comp_cierre';
         break;
       }
@@ -991,7 +989,6 @@ async function init() {
 
 function renderSemana() {
   const dias    = generarSemana(_semana, _cache.historial, _cache.excepciones);
-  console.log('renderSemana sem:', _semana, 'dias[1]:', JSON.stringify(dias[1]));
   const comidas = calcularComidas(dias);
   renderTabla(_semana, _domingo, dias, comidas);
 }
