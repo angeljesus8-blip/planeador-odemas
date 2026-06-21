@@ -945,15 +945,15 @@ function generarSemana(semana, historial, excepciones) {
     if (cierresF.length) prevAsesCierra = cierresF[cierresF.length-1].p;
   }
 
-  // Compensación gerencia
+  // Compensación gerencia (solo si el partner existe y no es vacante)
   for (const ger of GERENTES) {
     const partner = GERENTES.find(g => g !== ger);
-    if (!partner) continue;
+    if (!partner || EQUIPO[partner].vacante) continue;
     for (let d = 0; d <= 5; d++) {
       if (dias[d][ger]!=='doble' || dias[d][partner]!=='descanso') continue;
       for (let nd = d+1; nd <= 6; nd++) {
         if (['descanso','vacante'].includes(dias[nd][ger])) continue;
-        if (dias[nd][ger] === 'doble') continue; // ya trabaja solo, no compensar
+        if (dias[nd][ger] === 'doble') continue;
         dias[nd][ger] = abre(dias[nd][ger]) ? 'comp_apertura' : 'comp_cierre';
         break;
       }
