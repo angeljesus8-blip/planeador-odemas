@@ -309,7 +309,11 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
     <h1>HES Angelópolis 1217</h1>
     <p>Odemás · Grupo Gigante &nbsp;·&nbsp; Gerente: Ángel de Jesús</p>
   </div>
-  <div class="semana-badge" id="badge-semana">—</div>
+  <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0;">
+    <button onclick="navSemana(-1)" style="border:1.5px solid var(--borde);background:#fff;border-radius:6px;padding:5px 10px;font-size:14px;cursor:pointer;font-weight:700;color:var(--gris-txt);">‹</button>
+    <div class="semana-badge" id="badge-semana">—</div>
+    <button onclick="navSemana(1)"  style="border:1.5px solid var(--borde);background:#fff;border-radius:6px;padding:5px 10px;font-size:14px;cursor:pointer;font-weight:700;color:var(--gris-txt);">›</button>
+  </div>
 </header>
 
 <div class="wrapper-tabla">
@@ -718,8 +722,9 @@ const SEMANA_OVERRIDE        = null;
 const FECHA_DOMINGO_OVERRIDE = null;
 
 const _base    = semanaDeMostrar();
-const _domingo = FECHA_DOMINGO_OVERRIDE ?? _base.domingo;
-const _semana  = SEMANA_OVERRIDE        ?? _base.semana;
+let _domingo = FECHA_DOMINGO_OVERRIDE ?? _base.domingo;
+let _semana  = SEMANA_OVERRIDE        ?? _base.semana;
+let _cache   = {};
 
 // ============================================================
 //  MOTOR DE ROTACIÓN (N asesores)
@@ -939,9 +944,22 @@ async function init() {
     cargarConfig('excepciones'),
   ]);
   aplicarEquipo(equipoData);
-  const dias    = generarSemana(_semana, historial, excepciones);
+  _cache = { historial, excepciones };
+  renderSemana();
+}
+
+function renderSemana() {
+  const dias    = generarSemana(_semana, _cache.historial, _cache.excepciones);
   const comidas = calcularComidas(dias);
   renderTabla(_semana, _domingo, dias, comidas);
+}
+
+function navSemana(delta) {
+  _semana  += delta;
+  const d   = new Date(_domingo);
+  d.setDate(d.getDate() + delta * 7);
+  _domingo  = d;
+  renderSemana();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
