@@ -148,6 +148,9 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
 }
 .btn-login:hover { opacity: .88; }
 .login-error { font-size: 11px; color: var(--rojo); margin-top: 10px; min-height: 16px; }
+.login-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.ltab { flex: 1; padding: 8px; border: 1.5px solid var(--borde); border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; background: #fff; color: var(--gris-sub); transition: all .15s; }
+.ltab.activo { background: var(--rojo); color: #fff; border-color: var(--rojo); }
 
 /* ── Barra de usuario ── */
 #barra-usuario {
@@ -233,12 +236,23 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
 <!-- Login Overlay -->
 <div id="overlay-login" class="activo">
   <div class="login-box">
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAk8AAAFiCAYAAADvHTwbAAAACXBIWXMAAC4jAAAuIwF4pT92" alt="Odemás" onerror="this.style.display='none'" style="height:44px;margin-bottom:20px;">
-    <h2>HES Angelópolis 1217</h2>
-    <p>Ingresa con tu correo y contraseña</p>
-    <input type="email" id="inp-email" placeholder="correo@ejemplo.com" autocomplete="username">
-    <input type="password" id="inp-pass" placeholder="Contraseña" autocomplete="current-password">
-    <button class="btn-login" onclick="doLogin()">Entrar</button>
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAk8AAAFiCAYAAADvHTwbAAAACXBIWXMAAC4jAAAuIwF4pT92" alt="Odemás" onerror="this.style.display='none'" style="height:44px;margin-bottom:16px;">
+    <h2>Planeador de Horarios</h2>
+    <div class="login-tabs">
+      <button class="ltab activo" data-tab="ger" onclick="switchLoginTab('ger')">Soy gerente</button>
+      <button class="ltab" data-tab="eq" onclick="switchLoginTab('eq')">Ver mi horario</button>
+    </div>
+    <div id="login-ger">
+      <p style="font-size:11px;color:#888;margin-bottom:12px">Ingresa con tu correo y contraseña</p>
+      <input type="email" id="inp-email" placeholder="correo@ejemplo.com" autocomplete="username">
+      <input type="password" id="inp-pass" placeholder="Contraseña" autocomplete="current-password">
+      <button class="btn-login" onclick="doLogin()">Entrar</button>
+    </div>
+    <div id="login-eq" style="display:none">
+      <p style="font-size:11px;color:#888;margin-bottom:12px">Ingresa el PIN que te dio tu gerente</p>
+      <input type="text" id="inp-pin" placeholder="PIN" maxlength="8" style="text-align:center;font-size:22px;letter-spacing:8px;font-weight:700;">
+      <button class="btn-login" onclick="doLoginPIN()">Ver horario</button>
+    </div>
     <div class="login-error" id="login-error"></div>
   </div>
 </div>
@@ -371,6 +385,30 @@ async function doLogin() {
 }
 async function doLogout() { await _sb.auth.signOut(); location.reload(); }
 
+function switchLoginTab(tab) {
+  document.querySelectorAll('.ltab').forEach(b => b.classList.toggle('activo', b.dataset.tab === tab));
+  document.getElementById('login-ger').style.display = tab === 'ger' ? '' : 'none';
+  document.getElementById('login-eq').style.display  = tab === 'eq'  ? '' : 'none';
+  document.getElementById('login-error').textContent = '';
+}
+
+async function doLoginPIN() {
+  const pin = document.getElementById('inp-pin').value.trim();
+  document.getElementById('login-error').textContent = '';
+  if (!pin) { document.getElementById('login-error').textContent = 'Ingresa el PIN.'; return; }
+  const { data, error } = await _sb.rpc('get_horario_publico', { p_pin: pin });
+  if (!data) { document.getElementById('login-error').textContent = 'PIN incorrecto.'; return; }
+  mostrarHorarioPublico(data);
+}
+
+function mostrarHorarioPublico(data) {
+  document.getElementById('overlay-login').classList.remove('activo');
+  aplicarEquipo(data.equipo);
+  const dias    = generarSemana(_semana, data.historial, data.excepciones);
+  const comidas = calcularComidas(dias);
+  renderTabla(_semana, _domingo, dias, comidas);
+}
+
 // ── Datos Supabase ────────────────────────────────────────
 async function cargarConfig(clave) {
   const user = (await _sb.auth.getUser()).data.user;
@@ -430,7 +468,13 @@ function renderFormEquipo() {
     <td><select class="eq-input eq-short" data-campo="descFijo">${dOpts(a.descFijo)}</select></td>
     <td><input class="eq-input eq-short" data-campo="key" value="${a.key}"></td>
     <td><button class="btn-quitar-as" onclick="this.closest('tr').remove()">✕</button></td></tr>`;
+  const pinActual = eq.pin || '';
   document.getElementById('admin-equipo-area').innerHTML = `
+    <div class="eq-section">
+      <h4>PIN de acceso para tu equipo</h4>
+      <p style="font-size:11px;color:#888;margin-bottom:8px">Tu equipo entra con este PIN — cámbialo cuando quieras revocar acceso</p>
+      <input class="eq-input" id="inp-pin-tienda" value="${pinActual}" placeholder="ej: 1217" maxlength="8" style="width:140px;text-align:center;font-size:18px;font-weight:700;letter-spacing:6px;">
+    </div>
     <div class="eq-section"><h4>Gerentes <span style="font-weight:400;color:#888">(siempre 2)</span></h4>
       <table class="eq-table"><thead><tr><th>Nombre completo</th><th>Cargo</th><th>#Emp</th><th>Descanso fijo</th><th>ID</th></tr></thead>
       <tbody id="tbody-ger">${eq.gerentes.map(rowG).join('')}</tbody></table></div>
@@ -451,6 +495,7 @@ function agregarAsesor() {
   document.getElementById('tbody-as').appendChild(tr);
 }
 function leerEquipoForm() {
+  const pin = document.getElementById('inp-pin-tienda')?.value.trim() || '';
   const leer = id => [...document.querySelectorAll(`#${id} tr`)].map(tr => {
     const obj = {};
     tr.querySelectorAll('[data-campo]').forEach(el => {
@@ -458,7 +503,7 @@ function leerEquipoForm() {
     });
     return obj;
   }).filter(o => o.nombre && o.key);
-  return { gerentes: leer('tbody-ger'), asesores: leer('tbody-as') };
+  return { pin, gerentes: leer('tbody-ger'), asesores: leer('tbody-as') };
 }
 
 // ── Formulario Próxima semana ─────────────────────────────────
