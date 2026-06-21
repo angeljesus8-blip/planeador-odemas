@@ -1093,6 +1093,8 @@ function renderSemana() {
 }
 
 async function guardarSemana() {
+  const yaGuardada = !!_cache.semanas_guardadas?.[`semana_${_semana}`];
+  if (yaGuardada && !confirm(`¿Reemplazar el horario guardado de la Semana ${_semana}?`)) return;
   // 1. Guardar Sáb/Dom en historial (base para rotación futura)
   const extract = d => ({
     apertura: PERSONAS.filter(p => ['apertura','apertura_10','doble','comp_apertura'].includes(_diasActuales[d][p])),
