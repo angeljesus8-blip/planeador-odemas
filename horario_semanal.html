@@ -689,12 +689,12 @@ function renderFormProxima() {
       const cls = val==='apertura'?'sel-ap':val==='cierre'?'sel-ci':val==='permiso'?'sel-pm':val==='capacitacion'?'sel-cap':'';
       return `<div class="esp-day-wrap">
         <span>${DIAS_NOMBRES[d].charAt(0)}</span>
-        <select class="esp-sel ${cls}" data-persona="${p.key}" data-dia="${d}" onchange="onEspChange(this)">
-          <option value="">—</option>
-          <option value="apertura"${val==='apertura'?' selected':''}>Ap↑</option>
-          <option value="cierre"${val==='cierre'?' selected':''}>Ci↓</option>
-          <option value="permiso"${val==='permiso'?' selected':''}>Pm</option>
-          <option value="capacitacion"${val==='capacitacion'?' selected':''}>Cap</option>
+        <select class="esp-sel ${cls}" data-persona="${p.key}" data-dia="${d}" onchange="onEspChange(this)" title="${val?({'apertura':'Forzar apertura','cierre':'Forzar cierre','permiso':'Permiso','capacitacion':'Capacitación'}[val]||''):'Sin solicitud'}">
+          <option value="">Normal</option>
+          <option value="apertura"${val==='apertura'?' selected':''}>Apertura</option>
+          <option value="cierre"${val==='cierre'?' selected':''}>Cierre</option>
+          <option value="permiso"${val==='permiso'?' selected':''}>Permiso</option>
+          <option value="capacitacion"${val==='capacitacion'?' selected':''}>Capacit.</option>
         </select>
         <div class="cap-times" style="${val==='capacitacion'?'':'display:none'}">
           <input type="time" class="cap-e" data-persona="${p.key}" data-dia="${d}" value="${cap?.entrada||'09:00'}">
