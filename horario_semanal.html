@@ -773,6 +773,14 @@ function generarSemana(semana, historial, excepciones) {
   };
   const enVac   = p => Array.isArray(vacRaw) ? vacRaw.includes(p) : (Array.isArray(vacRaw[p]) && vacRaw[p].length > 0);
   const trabaja = (p, d) => !enVacDia(p, d) && descFijo[p] !== d;
+
+  // Si un gerente no trabaja ningún día de la semana, su pareja no descansa
+  GERENTES.forEach(ger => {
+    const partner = GERENTES.find(g => g !== ger);
+    if (!partner) return;
+    const partnerTrabaja = [0,1,2,3,4,5,6].some(d => trabaja(partner, d));
+    if (!partnerTrabaja) descFijo[ger] = -1; // trabaja todos los días
+  });
   const abre    = t => t === 'apertura' || t === 'apertura_10';
   const tieneEsp = (p, d) => { const e = espDia[p]; return Array.isArray(e) ? e.includes(d) : e === d; };
 
