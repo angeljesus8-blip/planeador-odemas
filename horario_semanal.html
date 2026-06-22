@@ -291,7 +291,6 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
   <button class="btn-sm" id="btn-guardar-sem" onclick="guardarSemana()" style="background:var(--azul);color:#fff;border:none;display:none;">💾 Guardar semana</button>
   <button class="btn-sm" id="btn-desbloquear-sem" onclick="desbloquearSemana()" style="background:#888;color:#fff;border:none;display:none;">🔓 Desbloquear</button>
   <button class="btn-sm" id="btn-exportar" onclick="exportarExcel()" style="background:#1B5E20;color:#fff;border:none;display:none;">⬇ Excel</button>
-  <button class="btn-sm" id="btn-sin-asignar" onclick="volverSinAsignar()" style="background:#fff;color:#c62828;border:1.5px solid #c62828;display:none;" title="Borra la configuración de esta semana futura y vuelve a 'sin asignar'">↩ Sin asignar</button>
   <button class="btn-sm btn-logout" onclick="doLogout()">Cerrar sesión</button>
 </div>
 
@@ -746,11 +745,17 @@ function renderFormProxima() {
       <td><select class="eq-input eq-short chk-desc" data-persona="${p.key}">${dOpts(descV)}</select></td>
       ${espCell}</tr>`;
   }).join('');
+  const esFuturaProx  = semTarget > _base.semana;
+  const tieneConfig   = !!_datosAdmin.excepciones?.[`semana_${semTarget}`] || !!_cache.semanas_guardadas?.[`semana_${semTarget}`];
+  const btnReset = (esFuturaProx && tieneConfig)
+    ? `<button class="btn-sm" onclick="quitarSemanaProx()" style="background:#fff;color:#c62828;border:1.5px solid #c62828;margin-left:12px;" title="Borra la configuración de esta semana y la deja en 'sin asignar'">↩ Dejar sin asignar</button>`
+    : '';
   document.getElementById('admin-proxima-area').innerHTML = `
     <div class="prox-header">Semana
       <button class="btn-sm" onclick="cambiarSemProx(-1)">◄</button>
       <strong id="num-sem-prox">${semTarget}</strong>
       <button class="btn-sm" onclick="cambiarSemProx(1)">►</button>
+      ${btnReset}
     </div>
     <table class="prox-table"><thead><tr>
       <th>Integrante</th><th>Vacaciones</th><th>Descanso</th><th>Solicitud especial — por día</th>
@@ -1276,8 +1281,6 @@ function renderSemana() {
   if (btnD) btnD.style.display = (!sinAsignar && guardada) ? '' : 'none';
   const btnE = document.getElementById('btn-exportar');
   if (btnE) btnE.style.display = sinAsignar ? 'none' : '';
-  const btnSA = document.getElementById('btn-sin-asignar');
-  if (btnSA) btnSA.style.display = (esFutura && !sinAsignar) ? '' : 'none';
   if (sinAsignar) {
     _diasActuales = null;
     const fi = new Date(_domingo); fi.setDate(fi.getDate() + 1);
@@ -1329,20 +1332,24 @@ async function desbloquearSemana() {
   renderSemana();
 }
 
-async function volverSinAsignar() {
-  if (_semana <= _base.semana) { alert('Solo se pueden revertir semanas futuras.'); return; }
-  if (!confirm(`¿Volver la Semana ${_semana} a "sin asignar"?\n\nSe borrará su configuración (vacaciones, descansos, solicitudes) y el horario guardado de esa semana. Esta acción no se puede deshacer.`)) return;
-  const exc = { ..._cache.excepciones };
-  delete exc[`semana_${_semana}`];
+async function quitarSemanaProx() {
+  const semTarget = _semana + _semProxOffset;
+  if (semTarget <= _base.semana) { alert('Solo se pueden revertir semanas futuras.'); return; }
+  if (!confirm(`¿Dejar la Semana ${semTarget} como "sin asignar"?\n\nSe borrará su configuración (vacaciones, descansos, solicitudes) y el horario guardado de esa semana. Esta acción no se puede deshacer.`)) return;
+  const exc = { ..._datosAdmin.excepciones };
+  delete exc[`semana_${semTarget}`];
   await guardarConfig('excepciones', exc);
+  _datosAdmin.excepciones = exc;
   _cache.excepciones = exc;
-  if (_cache.semanas_guardadas?.[`semana_${_semana}`]) {
+  if (_cache.semanas_guardadas?.[`semana_${semTarget}`]) {
     const sg = { ..._cache.semanas_guardadas };
-    delete sg[`semana_${_semana}`];
+    delete sg[`semana_${semTarget}`];
     await guardarConfig('semanas_guardadas', sg);
     _cache.semanas_guardadas = sg;
   }
-  renderSemana();
+  renderFormProxima();
+  const msg = document.getElementById('admin-msg');
+  msg.textContent = `↩ La Semana ${semTarget} quedó sin asignar.`; msg.style.color = '#E65100';
 }
 
 async function exportarExcel() {
