@@ -313,7 +313,7 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
     <div class="admin-actions">
       <button class="btn-cerrar-admin" onclick="vaciarForm()" style="margin-right:auto" title="Borra los campos de la pestaña actual">🧹 Vaciar</button>
       <button class="btn-cerrar-admin" onclick="cerrarAdmin()">Cancelar</button>
-      <button class="btn-guardar" onclick="guardarAdmin()">Guardar</button>
+      <button class="btn-guardar" id="btn-guardar-admin" onclick="guardarAdmin()">Guardar</button>
     </div>
   </div>
 </div>
@@ -570,6 +570,21 @@ function cambiarTab(tab) {
   if (esJSON)             document.getElementById('admin-textarea').value = JSON.stringify(_datosAdmin[tab], null, 2);
   else if (tab==='equipo')  renderFormEquipo();
   else if (tab==='proxima') renderFormProxima();
+  actualizarBotonGuardar();
+}
+
+function actualizarBotonGuardar() {
+  const b = document.getElementById('btn-guardar-admin');
+  if (!b) return;
+  if (_tabAdmin === 'proxima') {
+    const semTarget = _semana + _semProxOffset;
+    const tieneConfig = !!_datosAdmin.excepciones?.[`semana_${semTarget}`] || !!_cache.semanas_guardadas?.[`semana_${semTarget}`];
+    b.textContent = tieneConfig ? '💾 Guardar cambios' : '📅 Generar planeador';
+  } else if (_tabAdmin === 'equipo') {
+    b.textContent = '💾 Guardar cambios';
+  } else {
+    b.textContent = '💾 Guardar';
+  }
 }
 
 // ── Formulario Equipo ─────────────────────────────────────
@@ -760,6 +775,7 @@ function renderFormProxima() {
     <table class="prox-table"><thead><tr>
       <th>Integrante</th><th>Vacaciones</th><th>Descanso</th><th>Solicitud especial — por día</th>
     </tr></thead><tbody>${rows}</tbody></table>`;
+  actualizarBotonGuardar();
 }
 function cambiarSemProx(delta) { _semProxOffset += delta; renderFormProxima(); }
 function onEspChange(sel) {
@@ -1349,7 +1365,8 @@ async function quitarSemanaProx() {
   }
   renderFormProxima();
   const msg = document.getElementById('admin-msg');
-  msg.textContent = `↩ La Semana ${semTarget} quedó sin asignar.`; msg.style.color = '#E65100';
+  msg.innerHTML = `↩ La Semana ${semTarget} quedó sin asignar y <strong>ya se guardó automáticamente</strong>.<br>No vuelvas a pulsar "📅 Generar planeador" o la crearías de nuevo. Puedes cerrar con "Cancelar".`;
+  msg.style.color = '#E65100';
 }
 
 async function exportarExcel() {
