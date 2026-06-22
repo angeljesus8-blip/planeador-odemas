@@ -933,6 +933,23 @@ function generarSemana(semana, historial, excepciones) {
     const partnerTrabaja = [0,1,2,3,4,5,6].some(d => trabaja(partner, d));
     if (!partnerTrabaja) descFijo[ger] = -1; // trabaja todos los días
   });
+
+  // Ningún día puede quedar sin gerente. Si la única ausencia es un descanso
+  // (no vacaciones), se mueve ese descanso a otro día donde sí haya cobertura.
+  const _descMovidos = [];
+  for (let d = 0; d <= 6; d++) {
+    if (GERENTES.some(g => trabaja(g, d))) continue;          // ya hay gerente
+    const movible = GERENTES.find(g =>
+      !EQUIPO[g].vacante && !enVacDia(g, d) && descFijo[g] === d);
+    if (!movible) continue;                                    // todos en vacaciones: no se puede cubrir
+    let nuevoDesc = -1;
+    for (let nd = 0; nd <= 6; nd++) {
+      if (nd === d || enVacDia(movible, nd)) continue;
+      if (GERENTES.some(g => g !== movible && trabaja(g, nd))) { nuevoDesc = nd; break; }
+    }
+    descFijo[movible] = nuevoDesc;
+    _descMovidos.push({ persona: movible, de: d, a: nuevoDesc });
+  }
   const abre    = t => t === 'apertura' || t === 'apertura_10';
   const getEsp  = (p, d) => {
     const e = espDia[p];
@@ -1097,6 +1114,7 @@ function generarSemana(semana, historial, excepciones) {
     }
   }
 
+  if (_descMovidos.length) dias._descMovidos = _descMovidos;
   return dias;
 }
 
@@ -1191,7 +1209,15 @@ function renderTabla(semana, domingo, dias, comidas) {
     const dia = (df == null || df === -1) ? 'Variable' : (DIAS_NOMBRES[df] || 'Variable');
     return `<strong>${EQUIPO[p].nombre.split(' ')[0]}:</strong> ${dia}`;
   }).join(' &nbsp;·&nbsp; ');
-  document.getElementById('nota-pie').innerHTML = `Descansos fijos — ${notaPie}`;
+  let avisoMov = '';
+  if (dias._descMovidos?.length) {
+    avisoMov = '<br>' + dias._descMovidos.map(m => {
+      const nom = EQUIPO[m.persona].nombre.split(' ')[0];
+      const aTxt = m.a === -1 ? 'sin descanso (cubre toda la semana)' : DIAS_NOMBRES[m.a];
+      return `⚠ <strong>${nom}</strong>: descanso movido de ${DIAS_NOMBRES[m.de]} → ${aTxt} para no dejar la tienda sin gerente.`;
+    }).join('<br>');
+  }
+  document.getElementById('nota-pie').innerHTML = `Descansos fijos — ${notaPie}${avisoMov}`;
   document.getElementById('pie').textContent = 'Generado: ' + new Date().toLocaleString('es-MX');
 }
 
