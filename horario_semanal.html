@@ -801,6 +801,23 @@ function leerFormProxima() {
   return { semana: semTarget, data: { vacaciones, descanso_override, turno_especial } };
 }
 
+// ── Validar configuración de una semana (simula el motor) ──
+function validarSemana(sem, exc) {
+  const dias = generarSemana(sem, _datosAdmin.historial || _cache.historial, exc);
+  const graves = [], avisos = [];
+  for (let d = 0; d <= 6; d++) {
+    const hayGer = PERSONAS.some(p => EQUIPO[p].tipo === 'ger' &&
+      !['descanso','vacante','ausente'].includes(dias[d][p]));
+    if (!hayGer) graves.push(`🔴 ${DIAS_NOMBRES[d]}: la tienda quedaría SIN ningún gerente y no se puede cubrir (revisa vacaciones/descansos).`);
+  }
+  (dias._descMovidos || []).forEach(m => {
+    const nom = EQUIPO[m.persona].nombre.split(' ')[0];
+    if (m.a === -1) graves.push(`🟠 ${nom}: no se pudo asignar su descanso — trabajaría toda la semana para no dejar la tienda sin gerente.`);
+    else            avisos.push(`🟡 ${nom}: descanso movido de ${DIAS_NOMBRES[m.de]} a ${DIAS_NOMBRES[m.a]} para mantener cobertura.`);
+  });
+  return { graves, avisos };
+}
+
 // ── Guardar admin ─────────────────────────────────────────
 async function guardarAdmin() {
   const msg = document.getElementById('admin-msg');
@@ -815,9 +832,15 @@ async function guardarAdmin() {
     } else if (_tabAdmin === 'proxima') {
       const { semana: sem, data } = leerFormProxima();
       const exc = { ..._datosAdmin.excepciones, [`semana_${sem}`]: data };
+      const { graves, avisos } = validarSemana(sem, exc);
+      if (graves.length) {
+        const ok = confirm(`⚠ Atención antes de guardar la Semana ${sem}:\n\n${[...graves, ...avisos].join('\n')}\n\n¿Guardar de todas formas?`);
+        if (!ok) { msg.textContent='Guardado cancelado. Ajusta vacaciones o descansos.'; msg.style.color='#c62828'; return; }
+      }
       _datosAdmin.excepciones = exc;
       await guardarConfig('excepciones', exc);
-      msg.textContent=`✓ Semana ${sem} guardada.`; msg.style.color='#2e7d32';
+      msg.innerHTML = `✓ Semana ${sem} guardada.` + (avisos.length ? '<br>' + avisos.join('<br>') : '');
+      msg.style.color = avisos.length ? '#E65100' : '#2e7d32';
     } else {
       let parsed;
       try { parsed = JSON.parse(document.getElementById('admin-textarea').value); }
