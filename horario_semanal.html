@@ -291,6 +291,7 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
   <button class="btn-sm" id="btn-guardar-sem" onclick="guardarSemana()" style="background:var(--azul);color:#fff;border:none;display:none;">💾 Guardar semana</button>
   <button class="btn-sm" id="btn-desbloquear-sem" onclick="desbloquearSemana()" style="background:#888;color:#fff;border:none;display:none;">🔓 Desbloquear</button>
   <button class="btn-sm" id="btn-exportar" onclick="exportarExcel()" style="background:#1B5E20;color:#fff;border:none;display:none;">⬇ Excel</button>
+  <button class="btn-sm" id="btn-sin-asignar" onclick="volverSinAsignar()" style="background:#fff;color:#c62828;border:1.5px solid #c62828;display:none;" title="Borra la configuración de esta semana futura y vuelve a 'sin asignar'">↩ Sin asignar</button>
   <button class="btn-sm btn-logout" onclick="doLogout()">Cerrar sesión</button>
 </div>
 
@@ -1275,6 +1276,8 @@ function renderSemana() {
   if (btnD) btnD.style.display = (!sinAsignar && guardada) ? '' : 'none';
   const btnE = document.getElementById('btn-exportar');
   if (btnE) btnE.style.display = sinAsignar ? 'none' : '';
+  const btnSA = document.getElementById('btn-sin-asignar');
+  if (btnSA) btnSA.style.display = (esFutura && !sinAsignar) ? '' : 'none';
   if (sinAsignar) {
     _diasActuales = null;
     const fi = new Date(_domingo); fi.setDate(fi.getDate() + 1);
@@ -1323,6 +1326,22 @@ async function desbloquearSemana() {
   await guardarConfig('semanas_guardadas', sg);
   _cache.semanas_guardadas = sg;
   document.getElementById('btn-desbloquear-sem').style.display = 'none';
+  renderSemana();
+}
+
+async function volverSinAsignar() {
+  if (_semana <= _base.semana) { alert('Solo se pueden revertir semanas futuras.'); return; }
+  if (!confirm(`¿Volver la Semana ${_semana} a "sin asignar"?\n\nSe borrará su configuración (vacaciones, descansos, solicitudes) y el horario guardado de esa semana. Esta acción no se puede deshacer.`)) return;
+  const exc = { ..._cache.excepciones };
+  delete exc[`semana_${_semana}`];
+  await guardarConfig('excepciones', exc);
+  _cache.excepciones = exc;
+  if (_cache.semanas_guardadas?.[`semana_${_semana}`]) {
+    const sg = { ..._cache.semanas_guardadas };
+    delete sg[`semana_${_semana}`];
+    await guardarConfig('semanas_guardadas', sg);
+    _cache.semanas_guardadas = sg;
+  }
   renderSemana();
 }
 
