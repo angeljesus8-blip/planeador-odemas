@@ -311,6 +311,7 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
     <div id="admin-proxima-area" style="display:none"></div>
     <div class="admin-msg" id="admin-msg"></div>
     <div class="admin-actions">
+      <button class="btn-cerrar-admin" onclick="vaciarForm()" style="margin-right:auto" title="Borra los campos de la pestaña actual">🧹 Vaciar</button>
       <button class="btn-cerrar-admin" onclick="cerrarAdmin()">Cancelar</button>
       <button class="btn-guardar" onclick="guardarAdmin()">Guardar</button>
     </div>
@@ -538,6 +539,25 @@ async function abrirAdmin() {
 function cerrarAdmin() {
   document.getElementById('modal-admin').classList.remove('activo');
   document.getElementById('admin-msg').textContent = '';
+}
+function vaciarForm() {
+  const msg = document.getElementById('admin-msg');
+  if (_tabAdmin === 'proxima') {
+    const semTarget = _semana + _semProxOffset;
+    if (!confirm(`¿Vaciar todas las solicitudes, vacaciones y descansos especiales de la Semana ${semTarget}?\n\nNo se guarda hasta que des "Guardar".`)) return;
+    delete _datosAdmin.excepciones[`semana_${semTarget}`];
+    renderFormProxima();
+  } else if (_tabAdmin === 'equipo') {
+    if (!confirm('¿Vaciar nombre, cargo y número de empleado de todas las filas?\n\nNo se guarda hasta que des "Guardar".')) return;
+    document.querySelectorAll('#admin-equipo-area .eq-input').forEach(i => {
+      if (['nombre','cargo','emp'].includes(i.dataset.campo)) i.value = '';
+    });
+  } else {
+    if (!confirm('¿Vaciar el contenido de este editor JSON?\n\nNo se guarda hasta que des "Guardar".')) return;
+    document.getElementById('admin-textarea').value = '{}';
+  }
+  msg.textContent = '🧹 Formulario vaciado. Da "Guardar" para aplicar o "Cancelar" para descartar.';
+  msg.style.color = '#E65100';
 }
 function cambiarTab(tab) {
   _tabAdmin = tab;
