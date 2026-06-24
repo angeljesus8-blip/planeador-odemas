@@ -1400,8 +1400,8 @@ async function exportarExcel() {
   const ws = wb.addWorksheet(`Semana ${_semana}`);
   ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
 
-  // Anchos de columna (igual proporción que la página)
-  ws.columns = [{ width: 24 }, ...Array(7).fill(null).map(() => ({ width: 17 }))];
+  // Anchos de columna (más amplios para que quepa toda la info)
+  ws.columns = [{ width: 28 }, ...Array(7).fill(null).map(() => ({ width: 22 }))];
 
   // ── Paleta EXACTA de la página (ARGB = FF + hex CSS) ──
   const ARGB = {
@@ -1490,15 +1490,17 @@ async function exportarExcel() {
     // Horario
     const rH = ws.addRow([]); setLbl(rH.getCell(1), 'Horario');
     infos.forEach((inf,d) => setDato(rH.getCell(d+2), inf.label, inf.cls));
-    rH.height = 20;
+    rH.height = 30;
     // Comida
     const rC = ws.addRow([]); setLbl(rC.getCell(1), 'Comida');
     for (let d=0; d<7; d++) { const com = comidas[d][persona]||''; setDato(rC.getCell(d+2), com, com ? 'comida' : null); }
+    rC.height = 22;
     // Ley silla (solo asesores)
     if (esAs) {
       [['Ley Silla — Desc.1','ls1'], ['Ley Silla — Desc.2','ls2']].forEach(([lbl,k]) => {
         const rL = ws.addRow([]); setLbl(rL.getCell(1), lbl);
         infos.forEach((inf,d) => setDato(rL.getCell(d+2), inf[k], inf[k] ? 'ley-silla' : null));
+        rL.height = 20;
       });
     }
   }
