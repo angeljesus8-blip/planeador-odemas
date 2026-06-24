@@ -1032,11 +1032,24 @@ function generarSemana(semana, historial, excepciones) {
   function aplicarAsig(asig, dia) {
     const gersDisp  = GERENTES.filter(p => trabaja(p, dia));
     const asesDisp  = ASESORES.filter(p => trabaja(p, dia));
+
+    // Gerentes con turno forzado por solicitud especial (mantiene 1 abre / 1 cierra)
+    const gerForz = {};
+    if (gersDisp.length >= 2) {
+      const fAp = gersDisp.find(p => espTipo(p,dia) === 'apertura');
+      const fCi = gersDisp.find(p => espTipo(p,dia) === 'cierre');
+      if (fAp)      { gerForz[fAp] = 'apertura'; const o = gersDisp.find(p => p !== fAp); if (o) gerForz[o] = 'cierre'; }
+      else if (fCi) { gerForz[fCi] = 'cierre';   const o = gersDisp.find(p => p !== fCi); if (o) gerForz[o] = 'apertura'; }
+    }
+
     PERSONAS.forEach(p => {
       if (!trabaja(p, dia))                                        { dias[dia][p] = enVacDia(p, dia) ? 'vacante' : 'descanso'; }
       else if (EQUIPO[p].tipo === 'ger' && gersDisp.length === 1) { dias[dia][p] = 'doble'; }
-      else if (EQUIPO[p].tipo === 'as'  && asesDisp.length === 1) { dias[dia][p] = tieneEsp(p,dia) ? 'apertura_10' : 'cierre'; }
-      else if (asig.apertura.includes(p))                         { dias[dia][p] = (EQUIPO[p].tipo==='as' && tieneEsp(p,dia)) ? 'apertura_10' : 'apertura'; }
+      else if (gerForz[p])                                         { dias[dia][p] = gerForz[p]; }
+      else if (EQUIPO[p].tipo === 'as'  && espTipo(p,dia) === 'apertura') { dias[dia][p] = 'apertura_10'; }
+      else if (EQUIPO[p].tipo === 'as'  && espTipo(p,dia) === 'cierre')   { dias[dia][p] = 'cierre'; }
+      else if (EQUIPO[p].tipo === 'as'  && asesDisp.length === 1) { dias[dia][p] = 'cierre'; }
+      else if (asig.apertura.includes(p))                         { dias[dia][p] = 'apertura'; }
       else                                                         { dias[dia][p] = 'cierre'; }
     });
   }
