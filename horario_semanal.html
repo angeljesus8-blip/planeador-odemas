@@ -1385,93 +1385,117 @@ async function exportarExcel() {
 
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet(`Semana ${_semana}`);
+  ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
 
-  // Anchos de columna
-  ws.columns = [{ width: 26 }, ...Array(7).fill(null).map(() => ({ width: 16 }))];
+  // Anchos de columna (igual proporción que la página)
+  ws.columns = [{ width: 24 }, ...Array(7).fill(null).map(() => ({ width: 17 }))];
 
-  // Títulos de días
+  // ── Paleta EXACTA de la página (ARGB = FF + hex CSS) ──
+  const ARGB = {
+    rojo:'FFD12026', naranja:'FFF37021', azul:'FF336BB4',
+    lbl:'FFF5F5F5', lblTxt:'FF777777', vacio:'FFFAFAFA',
+  };
+  const CLS = {
+    apertura:     { bg:'FFC8E6C9', fg:'FF1B5E20', b:true  },
+    cierre:       { bg:'FFFFF9C4', fg:'FF5D4037', b:true  },
+    doble:        { bg:'FFFFCCBC', fg:'FFBF360C', b:true  },
+    comp:         { bg:'FFE3F2FD', fg:'FF0D47A1', b:true  },
+    descanso:     { bg:'FFD32F2F', fg:'FFFFFFFF', b:true  },
+    vacante:      { bg:'FF616161', fg:'FFCCCCCC', b:false },
+    ausente:      { bg:'FFE1BEE7', fg:'FF4A148C', b:true  },
+    permiso:      { bg:'FFE8F5E9', fg:'FF1B5E20', b:true  },
+    capacitacion: { bg:'FFFFF8E1', fg:'FFE65100', b:true  },
+    comida:       { bg:'FFFCE4EC', fg:'FF880E4F', b:false },
+    'ley-silla':  { bg:'FFFFFDE7', fg:'FF827717', b:false },
+  };
+  const fill = c => ({ type:'pattern', pattern:'solid', fgColor:{ argb:c } });
+  const borde = { style:'thin', color:{ argb:'FFE0E0E0' } };
+  const allBorders = { top:borde, left:borde, bottom:borde, right:borde };
+
+  // ── Título con marca Odemás (3 barras: rojo/naranja/azul) ──
+  ws.mergeCells('A1:H1');
+  const fi = new Date(_domingo); fi.setDate(fi.getDate() + 0);
+  const ff = new Date(_domingo); ff.setDate(ff.getDate() + 6);
+  const rango = `${fi.getDate()}–${ff.getDate()} ${fi.toLocaleString('es-MX',{month:'short'})} ${fi.getFullYear()}`;
+  const tCell = ws.getCell('A1');
+  tCell.value = `ODEMÁS · HES Angelópolis 1217   —   Semana ${_semana} · ${rango}`;
+  tCell.font  = { bold:true, size:13, color:{ argb:ARGB.rojo } };
+  tCell.alignment = { horizontal:'left', vertical:'middle', indent:1 };
+  ws.getRow(1).height = 26;
+  ['B','C','D'].forEach((c,i) => { ws.getCell(`${c}1`).fill = fill([ARGB.rojo,ARGB.naranja,ARGB.azul][i]); });
+
+  // ── Fila encabezado de días (azul, col 1 roja) ──
   const fechas = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(_domingo); d.setDate(d.getDate() + i);
     return `${DIAS_NOMBRES[i]}\n${d.getDate()}/${String(d.getMonth()+1).padStart(2,'0')}`;
   });
-
-  // Fila título
-  ws.mergeCells('A1:H1');
-  const tCell = ws.getCell('A1');
-  tCell.value = `Horario Semana ${_semana}`;
-  tCell.font  = { bold: true, size: 14, color: { argb: 'FF336BB4' } };
-  tCell.alignment = { horizontal: 'center', vertical: 'middle' };
-  ws.getRow(1).height = 24;
-
-  // Fila encabezado días
-  const hRow = ws.addRow(['Empleado', ...fechas]);
+  const hRow = ws.addRow(['EMPLEADO / TURNO', ...fechas]);
   hRow.eachCell((cell, col) => {
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF336BB4' } };
-    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    cell.border = { bottom: { style: 'thin', color: { argb: 'FF1a3f6f' } } };
+    cell.fill = fill(col === 1 ? ARGB.rojo : ARGB.azul);
+    cell.font = { bold:true, color:{ argb:'FFFFFFFF' }, size:11 };
+    cell.alignment = { horizontal: col===1 ? 'left' : 'center', vertical:'middle', wrapText:true, indent: col===1?1:0 };
+    cell.border = allBorders;
   });
-  hRow.height = 28;
-
-  // Mapa de colores por turno
-  const COL = {
-    apertura:      { bg: 'FFA5D6A7', fg: 'FF1B5E20' },
-    apertura_10:   { bg: 'FFA5D6A7', fg: 'FF1B5E20' },
-    cierre:        { bg: 'FFFFCCBC', fg: 'FF5D4037' },
-    doble:         { bg: 'FFFFAB91', fg: 'FFBF360C' },
-    comp_apertura: { bg: 'FFBBDEFB', fg: 'FF0D47A1' },
-    comp_cierre:   { bg: 'FFBBDEFB', fg: 'FF0D47A1' },
-    descanso:      { bg: 'FFD32F2F', fg: 'FFFFFFFF' },
-    vacante:       { bg: 'FF9E9E9E', fg: 'FFFFFFFF' },
-    permiso:       { bg: 'FFC8E6C9', fg: 'FF1B5E20' },
-    capacitacion:  { bg: 'FFFFF9C4', fg: 'FFE65100' },
-  };
+  hRow.height = 30;
 
   const comidas = calcularComidas(_diasActuales);
 
-  PERSONAS.forEach(p => {
-    const eq = EQUIPO[p];
-    const nombre = eq.vacante ? '⚠ VACANTE' : `${eq.nombre} (${eq.cargo})`;
+  // Celda de etiqueta lateral ("Horario", "Comida"…)
+  const setLbl = (cell, txt) => {
+    cell.value = txt; cell.fill = fill(ARGB.lbl);
+    cell.font = { italic:true, size:10, color:{ argb:ARGB.lblTxt } };
+    cell.alignment = { horizontal:'left', vertical:'middle', indent:2 };
+    cell.border = { ...allBorders, right:{ style:'medium', color:{ argb:ARGB.rojo } } };
+  };
+  // Celda de dato (turno / comida / ley silla)
+  const setDato = (cell, valor, cls) => {
+    const c = CLS[cls];
+    cell.value = valor || '—';
+    if (c) { cell.fill = fill(c.bg); cell.font = { size:10, bold:c.b, color:{ argb:c.fg } }; }
+    else   { cell.fill = fill(ARGB.vacio); cell.font = { size:10, color:{ argb:'FFDDDDDD' } }; }
+    cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+    cell.border = allBorders;
+  };
 
-    // Fila turno
-    const sRow = ws.addRow([nombre, ...Array.from({ length: 7 }, (_, d) => infoTurno(p, _diasActuales[d][p], d).label)]);
-    sRow.getCell(1).font = { bold: true, size: 10 };
-    sRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF5F5F5' } };
-    for (let d = 0; d < 7; d++) {
-      const cell = sRow.getCell(d + 2);
-      const turno = _diasActuales[d][p];
-      const c = COL[turno];
-      if (c) {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c.bg } };
-        cell.font = { size: 10, color: { argb: c.fg }, bold: true };
-      } else {
-        cell.font = { size: 10 };
-      }
-      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    }
-    sRow.height = 20;
+  // Fila de nombre (roja, ocupa todo el ancho)
+  function filaNombre(persona) {
+    const eq = EQUIPO[persona];
+    const r = ws.addRow([]);
+    ws.mergeCells(r.number, 1, r.number, 8);
+    const cell = ws.getCell(r.number, 1);
+    cell.value = eq.vacante ? '▌ ⚠ PUESTO VACANTE'
+               : `▌ ${eq.nombre} — ${eq.cargo}   ·   #${eq.emp}`;
+    cell.fill = fill(ARGB.rojo);
+    cell.font = { bold:true, size:11, color:{ argb:'FFFFFFFF' } };
+    cell.alignment = { horizontal:'left', vertical:'middle', indent:1 };
+    r.height = 22;
+  }
 
-    // Fila comida
-    const cRow = ws.addRow(['  Comida', ...Array.from({ length: 7 }, (_, d) => comidas[d][p] || '')]);
-    cRow.eachCell((cell, col) => {
-      cell.font = { size: 9, italic: true, color: { argb: 'FF888888' } };
-      if (col > 1) cell.alignment = { horizontal: 'center' };
-    });
-
-    // Ley silla (asesores)
-    if (eq.tipo === 'as') {
-      ['ls1', 'ls2'].forEach((k, idx) => {
-        const lRow = ws.addRow([`  Ley silla ${idx + 1}`, ...Array.from({ length: 7 }, (_, d) => infoTurno(p, _diasActuales[d][p], d)[k] || '')]);
-        lRow.eachCell((cell, col) => {
-          cell.font = { size: 8, color: { argb: 'FF555555' } };
-          if (col > 1) cell.alignment = { horizontal: 'center' };
-        });
+  function bloquePersona(persona, esAs) {
+    filaNombre(persona);
+    const infos = Array.from({ length:7 }, (_,d) => infoTurno(persona, _diasActuales[d][persona], d));
+    // Horario
+    const rH = ws.addRow([]); setLbl(rH.getCell(1), 'Horario');
+    infos.forEach((inf,d) => setDato(rH.getCell(d+2), inf.label, inf.cls));
+    rH.height = 20;
+    // Comida
+    const rC = ws.addRow([]); setLbl(rC.getCell(1), 'Comida');
+    for (let d=0; d<7; d++) { const com = comidas[d][persona]||''; setDato(rC.getCell(d+2), com, com ? 'comida' : null); }
+    // Ley silla (solo asesores)
+    if (esAs) {
+      [['Ley Silla — Desc.1','ls1'], ['Ley Silla — Desc.2','ls2']].forEach(([lbl,k]) => {
+        const rL = ws.addRow([]); setLbl(rL.getCell(1), lbl);
+        infos.forEach((inf,d) => setDato(rL.getCell(d+2), inf[k], inf[k] ? 'ley-silla' : null));
       });
     }
+  }
 
-    // Línea separadora
-    ws.addRow([]);
-  });
+  GERENTES.forEach(p => bloquePersona(p, false));
+  if (GERENTES.length && ASESORES.length) {
+    const sep = ws.addRow([]); ws.mergeCells(sep.number, 1, sep.number, 8);
+    ws.getCell(sep.number, 1).fill = fill(ARGB.naranja); sep.height = 6;
+  }
+  ASESORES.forEach(p => bloquePersona(p, true));
 
   // Descargar
   const buf  = await wb.xlsx.writeBuffer();
