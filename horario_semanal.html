@@ -506,10 +506,11 @@ async function doLoginPIN() {
 function mostrarHorarioPublico(data) {
   document.getElementById('overlay-login').classList.remove('activo');
   aplicarEquipo(data.equipo);
-  // Preferir la semana guardada (igual que el gerente); si no, regenerar.
+  // Preferir la foto publicada por el gerente (igual que él la ve); si no, regenerar.
   _cache.excepciones = data.excepciones;
-  const guardada = data.semanas_guardadas?.[`semana_${_semana}`];
-  const dias = guardada ? guardada.dias : generarSemana(_semana, data.historial, data.excepciones);
+  const pub = data.excepciones?.__publicadas?.[`semana_${_semana}`]
+           ?? data.semanas_guardadas?.[`semana_${_semana}`];
+  const dias = pub ? pub.dias : generarSemana(_semana, data.historial, data.excepciones);
   _espActual = data.excepciones?.[`semana_${_semana}`]?.turno_especial ?? {};
   const comidas = calcularComidas(dias);
   renderTabla(_semana, _domingo, dias, comidas);
@@ -1349,6 +1350,16 @@ async function guardarSemana() {
   await guardarConfig('semanas_guardadas', sg);
   _cache.semanas_guardadas = sg;
 
+  // 3. Publicar la foto para el equipo (PIN): va dentro de excepciones.__publicadas
+  //    porque el RPC público solo devuelve equipo/historial/excepciones.
+  const exc = { ..._cache.excepciones };
+  const pub = { ...(exc.__publicadas || {}), [`semana_${_semana}`]: { dias: _diasActuales } };
+  Object.keys(pub).map(k => parseInt(k.replace('semana_',''))).sort((a,b)=>b-a).slice(4)
+    .forEach(k => delete pub[`semana_${k}`]);
+  exc.__publicadas = pub;
+  await guardarConfig('excepciones', exc);
+  _cache.excepciones = exc;
+
   const btn = document.getElementById('btn-guardar-sem');
   if (btn) { btn.textContent = '✓ Guardada'; setTimeout(() => { btn.textContent = '💾 Guardar semana'; }, 2000); }
   document.getElementById('btn-desbloquear-sem').style.display = '';
@@ -1361,6 +1372,14 @@ async function desbloquearSemana() {
   delete sg[`semana_${_semana}`];
   await guardarConfig('semanas_guardadas', sg);
   _cache.semanas_guardadas = sg;
+  // Quitar la foto publicada para el equipo
+  if (_cache.excepciones?.__publicadas?.[`semana_${_semana}`]) {
+    const exc = { ..._cache.excepciones };
+    exc.__publicadas = { ...exc.__publicadas };
+    delete exc.__publicadas[`semana_${_semana}`];
+    await guardarConfig('excepciones', exc);
+    _cache.excepciones = exc;
+  }
   document.getElementById('btn-desbloquear-sem').style.display = 'none';
   renderSemana();
 }
@@ -1371,6 +1390,7 @@ async function quitarSemanaProx() {
   if (!confirm(`¿Dejar la Semana ${semTarget} como "sin asignar"?\n\nSe borrará su configuración (vacaciones, descansos, solicitudes) y el horario guardado de esa semana. Esta acción no se puede deshacer.`)) return;
   const exc = { ..._datosAdmin.excepciones };
   delete exc[`semana_${semTarget}`];
+  if (exc.__publicadas?.[`semana_${semTarget}`]) { exc.__publicadas = { ...exc.__publicadas }; delete exc.__publicadas[`semana_${semTarget}`]; }
   await guardarConfig('excepciones', exc);
   _datosAdmin.excepciones = exc;
   _cache.excepciones = exc;
