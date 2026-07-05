@@ -506,7 +506,11 @@ async function doLoginPIN() {
 function mostrarHorarioPublico(data) {
   document.getElementById('overlay-login').classList.remove('activo');
   aplicarEquipo(data.equipo);
-  const dias    = generarSemana(_semana, data.historial, data.excepciones);
+  // Preferir la semana guardada (igual que el gerente); si no, regenerar.
+  _cache.excepciones = data.excepciones;
+  const guardada = data.semanas_guardadas?.[`semana_${_semana}`];
+  const dias = guardada ? guardada.dias : generarSemana(_semana, data.historial, data.excepciones);
+  _espActual = data.excepciones?.[`semana_${_semana}`]?.turno_especial ?? {};
   const comidas = calcularComidas(dias);
   renderTabla(_semana, _domingo, dias, comidas);
 }
