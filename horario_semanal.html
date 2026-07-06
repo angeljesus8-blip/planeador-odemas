@@ -759,6 +759,7 @@ function renderFormProxima() {
       <td style="text-align:center">
         <input type="checkbox" class="chk-vac" data-persona="${p.key}" ${enVac?'checked':''} onchange="toggleVacDias('${p.key}')">
         <div id="vac-dias-${p.key}" class="vac-dias-grid" style="${enVac?'':'display:none'}">
+          <div style="font-size:9px;color:var(--gris-sub);width:100%;margin-bottom:2px">Marca los días fuera:</div>
           ${[0,1,2,3,4,5,6].map(i=>`<label class="vac-dia-pill${vacDias.includes(i)?' activo':''}"><input type="checkbox" class="chk-vac-dia" data-persona="${p.key}" data-dia="${i}" ${vacDias.includes(i)?'checked':''} onchange="this.closest('label').classList.toggle('activo',this.checked)">${DIAS_NOMBRES[i].charAt(0)}</label>`).join('')}
         </div>
       </td>
@@ -793,8 +794,12 @@ function toggleVacDias(key) {
   const chk = document.querySelector(`.chk-vac[data-persona="${key}"]`);
   const div = document.getElementById(`vac-dias-${key}`);
   if (div) div.style.display = chk.checked ? '' : 'none';
-  if (chk.checked) {
-    document.querySelectorAll(`.chk-vac-dia[data-persona="${key}"]`).forEach(c => c.checked = true);
+  // Al desmarcar Vacaciones, limpiar los días elegidos.
+  // Al marcar NO se preseleccionan días: el usuario elige cuáles estará fuera.
+  if (!chk.checked) {
+    document.querySelectorAll(`.chk-vac-dia[data-persona="${key}"]`).forEach(c => {
+      c.checked = false; c.closest('label').classList.remove('activo');
+    });
   }
 }
 function leerFormProxima() {
@@ -857,6 +862,13 @@ async function guardarAdmin() {
       await guardarConfig('equipo', eq); aplicarEquipo(eq);
       msg.textContent='✓ Equipo guardado.'; msg.style.color='#2e7d32';
     } else if (_tabAdmin === 'proxima') {
+      // Vacaciones marcadas sin días elegidos → error (evita mandar a alguien toda o ninguna semana por accidente)
+      const vacSinDias = [...document.querySelectorAll('.chk-vac:checked')].filter(c =>
+        document.querySelectorAll(`.chk-vac-dia[data-persona="${c.dataset.persona}"]:checked`).length === 0);
+      if (vacSinDias.length) {
+        msg.textContent = '⚠ Marcaste Vacaciones sin elegir los días. Selecciona los días fuera o desmarca Vacaciones.';
+        msg.style.color = '#c62828'; return;
+      }
       const { semana: sem, data } = leerFormProxima();
       const exc = { ..._datosAdmin.excepciones, [`semana_${sem}`]: data };
       const { graves, avisos } = validarSemana(sem, exc);
