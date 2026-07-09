@@ -1480,7 +1480,7 @@ async function exportarExcel() {
   ws.getRow(6).height=24.8; ws.getRow(7).height=20.2;
 
   // Colores de turno (igual que la página) para las celdas de horas
-  const CLS_BG={ apertura:'FFC8E6C9', cierre:'FFFFF9C4', doble:'FFFFCCBC', comp:'FFE3F2FD', permiso:'FFE8F5E9', capacitacion:'FFFFF8E1' };
+  const CLS_BG={ apertura:'FFE8D6C0', cierre:'FFFFF9C4', doble:'FFFFCCBC', comp:'FFE3F2FD', permiso:'FFE8F5E9', capacitacion:'FFFFF8E1' };
   let r=8;
   const barra=txt=>{ ws.mergeCells(`C${r}:R${r}`); const c=S(`C${r}`,txt); c.font={name:ARIAL,size:12,bold:true}; c.fill=solid(ORANGE); c.alignment=CEN; ws.getRow(r).height=20.2; r++; };
   const tCell=(addr,v,bg)=>{ const c=S(addr,v); c.font={name:ARIAL,size:10,bold:true}; c.alignment=CEN; if(bg) c.fill=solid(bg); };
