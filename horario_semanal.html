@@ -1504,9 +1504,9 @@ async function exportarExcel() {
         else if(sh){ tCell(`${L1}${rA}`,sh[0],bg); tCell(`${L2}${rB}`,sh[1],bg); }
         else { ws.mergeCells(`${L1}${rA}:${L2}${rLast}`); const c=S(`${L1}${rA}`,info.label); c.font={name:ARIAL,size:10,bold:true}; c.alignment=CEN; }
         if(esAs){
-          const l1=parseR(info.ls1), l2=parseR(info.ls2);
-          if(l1){ tCell(`${L1}${r+2}`,l1[0]); tCell(`${L2}${r+2}`,l1[1]); }
-          if(l2){ tCell(`${L1}${r+3}`,l2[0]); tCell(`${L2}${r+3}`,l2[1]); }
+          const l1=parseR(info.ls1), l2=parseR(info.ls2), lg='FFC8E6C9';
+          if(l1){ tCell(`${L1}${r+2}`,l1[0],lg); tCell(`${L2}${r+2}`,l1[1],lg); }
+          if(l2){ tCell(`${L1}${r+3}`,l2[0],lg); tCell(`${L2}${r+3}`,l2[1],lg); }
         }
       }
     });
