@@ -423,9 +423,9 @@ function buildTurnoInfo(hOpen, hClose) {
       comp_cierre:   { label: `CIERRE ${fmtH(gCo)}–${fmtH(hClose)}`,       cls: 'comp',     entrada: gCo  },
     },
     as: {
-      apertura:    { label: `APERTURA ${fmtH(aAp)}–${fmtH(aAp+9)}`,   cls: 'apertura', entrada: aAp,  ls1: `${fmtH(hOpen+2)} a ${fmtH(hOpen+2.333)}`,  ls2: `${fmtH(hOpen+7)} a ${fmtH(hOpen+7.333)}`  },
-      apertura_10: { label: `APERTURA ${fmtH(aA10)}–${fmtH(aA10+9)}`, cls: 'apertura', entrada: aA10, ls1: `${fmtH(hOpen+2)} a ${fmtH(hOpen+2.333)}`,  ls2: `${fmtH(hOpen+7)} a ${fmtH(hOpen+7.333)}`  },
-      cierre:      { label: `CIERRE ${fmtH(aCi)}–${fmtH(hClose)}`,    cls: 'cierre',   entrada: aCi,  ls1: `${fmtH(hOpen+4)} a ${fmtH(hOpen+4.333)}`,  ls2: `${fmtH(hOpen+8.5)} a ${fmtH(hOpen+8.833)}` },
+      apertura:    { label: `APERTURA ${fmtH(aAp)}–${fmtH(aAp+9)}`,   cls: 'apertura', entrada: aAp,  ls1: `${fmtH(hOpen+2)} a ${fmtH(hOpen+2+1/6)}`,  ls2: `${fmtH(hOpen+7)} a ${fmtH(hOpen+7+1/6)}`  },
+      apertura_10: { label: `APERTURA ${fmtH(aA10)}–${fmtH(aA10+9)}`, cls: 'apertura', entrada: aA10, ls1: `${fmtH(hOpen+2)} a ${fmtH(hOpen+2+1/6)}`,  ls2: `${fmtH(hOpen+7)} a ${fmtH(hOpen+7+1/6)}`  },
+      cierre:      { label: `CIERRE ${fmtH(aCi)}–${fmtH(hClose)}`,    cls: 'cierre',   entrada: aCi,  ls1: `${fmtH(hOpen+4)} a ${fmtH(hOpen+4+1/6)}`,  ls2: `${fmtH(hOpen+8.5)} a ${fmtH(hOpen+8.5+1/6)}` },
     }
   };
 }
