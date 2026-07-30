@@ -1,0 +1,5 @@
+# Local Netlify folder
+.netlify
+historial.json
+excepciones.json
+_privado_no_publicar/

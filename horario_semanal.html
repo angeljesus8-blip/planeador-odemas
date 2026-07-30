@@ -390,13 +390,18 @@ let _datosAdmin = { historial: {}, excepciones: {} };
 // ============================================================
 //  EQUIPO DINÁMICO
 // ============================================================
+// Plantilla genérica a propósito. El equipo real vive en Supabase, ligado a la
+// cuenta del gerente y protegido por sesión (ver cargarConfig). Esto es solo lo
+// que alcanza a ver alguien SIN sesión — y este archivo es público, así que aquí
+// no van nombres ni números de empleado.
+// Para cargar el equipo real: entrar como gerente y editarlo en Admin → Equipo.
 const EQUIPO_DEFAULT = {
   gerentes: [
-    { key: 'G1',  nombre: 'GERENTE',    cargo: 'Gerente',    emp: '', descFijo: 5 },
+    { key: 'G1', nombre: 'GERENTE',    cargo: 'Gerente',    emp: '', descFijo: 5 },
     { key: 'G2', nombre: 'SUBGERENTE', cargo: 'Subgerente', emp: '', descFijo: 4 },
   ],
   asesores: [
-    { key: 'A1',  nombre: 'ASESOR 1',   cargo: 'Asesor', emp: '', descFijo: 3 },
+    { key: 'A1', nombre: 'ASESOR 1', cargo: 'Asesor', emp: '', descFijo: 3 },
     { key: 'A2', nombre: 'ASESOR 2', cargo: 'Asesor', emp: '', descFijo: 1 },
   ]
 };
