@@ -245,9 +245,28 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
 .esp-day-wrap select.sel-cap { background:#FFF8E1; }
 .cap-times { display:flex; flex-direction:column; gap:2px; margin-top:2px; }
 .cap-times input[type=time] { font-size:9px; width:100%; border:1px solid var(--borde); border-radius:3px; padding:2px 4px; }
+
+/* ── Volver al menú (solo dentro del tablero) ──
+   Este mismo archivo se publica en dos lados: como planeador suelto en
+   planeador-odemas (multi-tienda) y como horarios.html dentro del tablero de la
+   tienda. El botón se pinta solo en el segundo caso — ver mostrarVolverAlMenu().
+   Va por encima del overlay de login (z-index 999) para que el asesor que entró
+   por equivocación pueda regresar sin cerrar la app. */
+#volver-menu {
+  display: none;
+  position: fixed; top: 10px; left: 10px; z-index: 1000;
+  background: #fff; color: var(--gris-txt);
+  border: 1.5px solid var(--borde); border-radius: 999px;
+  padding: 7px 15px; font-family: inherit; font-size: 12px; font-weight: 700;
+  cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+#volver-menu:hover { background: var(--rojo); color: #fff; border-color: var(--rojo); }
 </style>
 </head>
 <body>
+
+<!-- Volver al menú del tablero (se muestra solo si se abrió desde ahí) -->
+<button id="volver-menu" onclick="location.href='index.html'">← Menú</button>
 
 <!-- Login Overlay -->
 <div id="overlay-login" class="activo">
@@ -276,9 +295,9 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
       </div>
     </div>
     <div id="login-eq" style="display:none">
-      <p style="font-size:11px;color:#888;margin-bottom:12px">Ingresa el PIN que te dio tu gerente</p>
-      <input type="text" id="inp-pin" placeholder="PIN" maxlength="8" style="text-align:center;font-size:22px;letter-spacing:8px;font-weight:700;">
-      <button class="btn-login" onclick="doLoginPIN()">Ver horario</button>
+      <p style="font-size:11px;color:#888;margin-bottom:12px">Ingresa tu número de empleado — el mismo del tablero</p>
+      <input type="text" id="inp-empno" inputmode="numeric" placeholder="Número de empleado" maxlength="10" style="text-align:center;font-size:20px;letter-spacing:4px;font-weight:700;">
+      <button class="btn-login" onclick="doLoginEmpleado()">Ver horario</button>
     </div>
     <div class="login-error" id="login-error"></div>
   </div>
@@ -291,6 +310,9 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
   <button class="btn-sm" id="btn-guardar-sem" onclick="guardarSemana()" style="background:var(--azul);color:#fff;border:none;display:none;">💾 Guardar semana</button>
   <button class="btn-sm" id="btn-desbloquear-sem" onclick="desbloquearSemana()" style="background:#888;color:#fff;border:none;display:none;">🔓 Desbloquear</button>
   <button class="btn-sm" id="btn-exportar" onclick="exportarExcel()" style="background:#1B5E20;color:#fff;border:none;display:none;">⬇ Excel</button>
+  <button class="btn-sm" onclick="respaldoBajar()" title="Descarga equipo, historial, excepciones y semanas guardadas en un archivo">🗄️ Respaldo</button>
+  <button class="btn-sm" onclick="document.getElementById('inp-respaldo').click()" title="Restaura un respaldo descargado antes">↥ Restaurar</button>
+  <input type="file" id="inp-respaldo" accept="application/json,.json" style="display:none" onchange="respaldoSubir(this)">
   <button class="btn-sm btn-logout" onclick="doLogout()">Cerrar sesión</button>
 </div>
 
@@ -325,9 +347,11 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
     <span class="bar-naranja"></span>
     <span class="bar-azul"></span>
   </div>
+  <!-- Los rellena fijarSesion() con la tienda de quien entró: este archivo lo
+       usan varias tiendas y antes decía "Angelópolis 1217" para todas. -->
   <div class="header-info">
-    <h1>HES Angelópolis 1217</h1>
-    <p>Odemás · Grupo Gigante &nbsp;·&nbsp; Gerente: Ángel de Jesús</p>
+    <h1 id="hdr-tienda">Planeador de Horarios</h1>
+    <p>Odemás · Grupo Gigante</p>
   </div>
   <div style="display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0;">
     <button onclick="navSemana(-1)" style="border:1.5px solid var(--borde);background:#fff;border-radius:6px;padding:5px 10px;font-size:14px;cursor:pointer;font-weight:700;color:var(--gris-txt);">‹</button>
@@ -379,9 +403,20 @@ tr.sep-naranja td { background: var(--naranja); height: 3px; padding: 0; border:
 // ============================================================
 //  SUPABASE
 // ============================================================
-const SUPABASE_URL = 'https://lgnyqfstmcqpkbekspte.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_j6xHlW7tSkM8iQI6O9n_LA_eL4ITb2n';
+/* 4-ago-2026: el planeador vivía en su propio proyecto (lgnyqfstmcqpkbekspte),
+   con su propio padrón de cuentas y su propio PIN. El equipo entraba dos veces:
+   su número en el tablero, y otro PIN aquí. Ahora es el mismo proyecto que el
+   resto de HES Red, así que la sesión del tablero vale también aquí.
+   Ver 09_Tablero/supabase_horarios.sql y MAPA.md (Cadena 7). */
+const SUPABASE_URL = 'https://rjdrljtujbwooejrpyqv.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_mELjDmCaFpNOxcwPi5MB2A_qSZ5ZA2z';
 const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* Quién está viendo esto y de qué tienda. Se llena de tres formas: heredado del
+   tablero (localStorage), por correo de gerente, o por número de empleado. */
+let _tienda = null;      // { store_id, nombre }
+let _empno  = null;      // número de quien entró, si entró por número
+let _puedeEditar = false;
 
 let _tabAdmin = 'equipo';
 let _semProxOffset = 1;
@@ -451,16 +486,76 @@ function aplicarEquipo(data) {
   _equipoData.asesores.forEach(a => { EQUIPO[a.key] = { ...a, tipo: 'as'  }; });
 }
 
-// ── Auth ──────────────────────────────────────────────────
+/* ── Acceso ──
+   Tres puertas, y ninguna pide nada que la persona no tenga ya:
+     1. Heredada del tablero: si entró a HES Red, aquí no se le pregunta nada.
+     2. Correo y contraseña (gerente o subgerente) — para la URL suelta.
+     3. Número de empleado — para el equipo en la URL suelta.
+   La 1 es la que quita el segundo login. Las otras dos existen porque este
+   mismo archivo se publica también para las tiendas que aún no tienen tablero. */
+
+const COLS_TIENDA = 'store_id,nombre';
+
+// Le pega la tienda y el permiso a quien acaba de identificarse.
+function fijarSesion(tienda, opciones) {
+  _tienda = { store_id: tienda.store_id, nombre: tienda.nombre || '' };
+  _empno  = (opciones && opciones.empno) || null;
+  _puedeEditar = !!(opciones && opciones.puedeEditar);
+  const h = document.getElementById('hdr-tienda');
+  if (h) h.textContent = 'HES ' + _tienda.store_id + (_tienda.nombre ? ' · ' + _tienda.nombre : '');
+}
+
 async function doLogin() {
   const email = document.getElementById('inp-email').value.trim();
   const pass  = document.getElementById('inp-pass').value;
-  document.getElementById('login-error').textContent = '';
-  const { error } = await _sb.auth.signInWithPassword({ email, password: pass });
-  if (error) { document.getElementById('login-error').textContent = 'Correo o contraseña incorrectos.'; return; }
-  mostrarApp();
+  const err   = document.getElementById('login-error');
+  err.textContent = '';
+  const { data, error } = await _sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { err.textContent = 'Correo o contraseña incorrectos.'; return; }
+
+  /* Igual que en el tablero: la cuenta puede ser la dueña de la tienda o la de
+     alguien del equipo con su propio correo (el subgerente), que no aparece en
+     `tiendas` y hay que vincular por su ficha. */
+  let tienda = (await _sb.from('tiendas').select(COLS_TIENDA).eq('user_id', data.user.id).maybeSingle()).data;
+  if (!tienda) {
+    const v = await _sb.rpc('vincular_mi_cuenta');
+    if (v.data && v.data.ok) {
+      tienda = (await _sb.from('tiendas').select(COLS_TIENDA).eq('store_id', v.data.store_id).maybeSingle()).data;
+    }
+  }
+  if (!tienda) {
+    err.textContent = 'Este correo no está dado de alta en ninguna tienda. Pide al gerente que lo registre en Admin → Equipo.';
+    return;
+  }
+  fijarSesion(tienda, { puedeEditar: true });
+  mostrarApp(email);
 }
-async function doLogout() { await _sb.auth.signOut(); location.reload(); }
+
+/* El equipo entra con SU número, el mismo del tablero. Ya no hay un PIN
+   compartido: cuando alguien se va, se le da de baja en Admin → Equipo y deja de
+   ver el horario, sin cambiárselo a todos los demás. */
+async function doLoginEmpleado() {
+  const empno = document.getElementById('inp-empno').value.trim();
+  const err   = document.getElementById('login-error');
+  err.textContent = '';
+  if (!empno) { err.textContent = 'Escribe tu número de empleado.'; return; }
+
+  const quien = (await _sb.rpc('login_empleado', { p_pin: empno })).data;
+  const fila  = Array.isArray(quien) ? quien[0] : quien;
+  if (!fila) { err.textContent = 'No reconozco ese número. ¿Ya te dieron de alta?'; return; }
+
+  fijarSesion({ store_id: fila.store_id, nombre: fila.nombre }, { empno: empno });
+  const datos = (await _sb.rpc('horario_equipo', { p_store_id: fila.store_id, p_empno: empno })).data;
+  if (!datos) { err.textContent = 'Tu tienda todavía no tiene horario publicado.'; return; }
+  mostrarHorarioEquipo(datos);
+}
+
+async function doLogout() {
+  await _sb.auth.signOut();
+  /* Quien llegó desde el tablero comparte sesión con él: cerrarla aquí lo saca
+     de toda la app, que es justo lo que espera al pulsar "Cerrar sesión". */
+  location.href = /\/horarios\.html$/.test(location.pathname) ? 'index.html' : location.pathname;
+}
 
 function mostrarRegistro() {
   document.getElementById('login-ger-form').style.display = 'none';
@@ -499,43 +594,109 @@ function switchLoginTab(tab) {
   document.getElementById('login-error').textContent = '';
 }
 
-async function doLoginPIN() {
-  const pin = document.getElementById('inp-pin').value.trim();
-  document.getElementById('login-error').textContent = '';
-  if (!pin) { document.getElementById('login-error').textContent = 'Ingresa el PIN.'; return; }
-  const { data, error } = await _sb.rpc('get_horario_publico', { p_pin: pin });
-  if (!data) { document.getElementById('login-error').textContent = 'PIN incorrecto.'; return; }
-  mostrarHorarioPublico(data);
-}
-
-function mostrarHorarioPublico(data) {
+/* Vista del equipo: lo que el gerente guardó, sin poder tocarlo.
+   `horario_equipo` devuelve `semanas_guardadas` directo, así que se acabó el
+   rodeo de publicar una foto dentro de `excepciones.__publicadas` —eso existía
+   solo porque el RPC viejo no la devolvía y no había permiso para cambiarlo.
+   Se sigue leyendo `__publicadas` como respaldo: los respaldos de antes del
+   4-ago-2026 la traen, y sin esto una semana ya publicada se vería regenerada
+   (que es exactamente el desfase gerente/equipo que se arregló en julio). */
+function mostrarHorarioEquipo(data) {
   document.getElementById('overlay-login').classList.remove('activo');
   aplicarEquipo(data.equipo);
-  // Preferir la foto publicada por el gerente (igual que él la ve); si no, regenerar.
   _cache.excepciones = data.excepciones;
-  const pub = data.excepciones?.__publicadas?.[`semana_${_semana}`]
-           ?? data.semanas_guardadas?.[`semana_${_semana}`];
-  const dias = pub ? pub.dias : generarSemana(_semana, data.historial, data.excepciones);
+  const guardada = data.semanas_guardadas?.[`semana_${_semana}`]
+                ?? data.excepciones?.__publicadas?.[`semana_${_semana}`];
+  const dias = guardada ? guardada.dias : generarSemana(_semana, data.historial, data.excepciones);
   _espActual = data.excepciones?.[`semana_${_semana}`]?.turno_especial ?? {};
   const comidas = calcularComidas(dias);
   renderTabla(_semana, _domingo, dias, comidas);
 }
 
-// ── Datos Supabase ────────────────────────────────────────
+/* ── Datos Supabase ──
+   Antes esto colgaba de user_id: el horario existía solo para la cuenta que lo
+   había creado, así que el subgerente no veía ni editaba el mismo. Ahora cuelga
+   de store_id y la RLS (`admin_de`) decide quién puede escribir — la misma regla
+   que ya cuida `tiendas` y `empleados`. */
 async function cargarConfig(clave) {
-  const user = (await _sb.auth.getUser()).data.user;
-  if (!user) return null;
-  const { data } = await _sb.from('horarios_config')
-    .select('contenido').eq('user_id', user.id).eq('clave', clave).maybeSingle();
+  if (!_tienda) return null;
+  const { data, error } = await _sb.from('horarios_config')
+    .select('contenido').eq('store_id', _tienda.store_id).eq('clave', clave).maybeSingle();
+  if (error) { console.warn('No se pudo leer ' + clave + ':', error.message); return null; }
   return data?.contenido ?? null;
 }
 async function guardarConfig(clave, contenido) {
-  const user = (await _sb.auth.getUser()).data.user;
-  if (!user) return;
-  await _sb.from('horarios_config').upsert(
-    { user_id: user.id, clave, contenido, updated_at: new Date().toISOString() },
-    { onConflict: 'user_id,clave' }
+  if (!_tienda) return;
+  const { error } = await _sb.from('horarios_config').upsert(
+    { store_id: _tienda.store_id, clave, contenido, updated_at: new Date().toISOString() },
+    { onConflict: 'store_id,clave' }
   );
+  /* Sin esto, quien no tiene permiso guardaba "bien" y al recargar no había
+     nada: la RLS rechaza en silencio y el upsert no lanza excepción. */
+  if (error) {
+    alert('No se pudo guardar (' + clave + '): ' + error.message +
+          '\n\nSi entraste con tu número y no con tu correo, no tienes permiso de editar.');
+    throw error;
+  }
+}
+
+/* ── Respaldo ──
+   El horario del equipo vivía SOLO dentro de Supabase: si la base se perdía o
+   alguien borraba una clave, no había de dónde sacarlo. Esto lo baja a un
+   archivo y lo vuelve a subir. Se usó para mudar el planeador de su proyecto
+   viejo al de HES Red (4-ago-2026), pero sirve como respaldo de siempre. */
+const CLAVES_RESPALDO = ['equipo', 'historial', 'excepciones', 'semanas_guardadas'];
+
+async function respaldoBajar() {
+  try {
+    const datos = {};
+    for (const c of CLAVES_RESPALDO) datos[c] = await cargarConfig(c) ?? null;
+    const vacias = CLAVES_RESPALDO.filter(c => datos[c] === null);
+    if (vacias.length === CLAVES_RESPALDO.length) {
+      alert('No encontré nada que respaldar. ¿Iniciaste sesión como gerente?');
+      return;
+    }
+    const paquete = { version: 1, bajado: new Date().toISOString(), datos };
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(paquete, null, 2)], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'horarios_respaldo_' + new Date().toISOString().slice(0,10) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    alert('Respaldo descargado' + (vacias.length ? '.\n\nOjo: venían vacías ' + vacias.join(', ') + '.' : '.'));
+  } catch (e) {
+    alert('No se pudo respaldar: ' + e.message);
+  }
+}
+
+async function respaldoSubir(input) {
+  const file = input.files && input.files[0];
+  input.value = '';                       // permite reintentar el mismo archivo
+  if (!file) return;
+  try {
+    const paquete = JSON.parse(await file.text());
+    const datos = paquete && paquete.datos;
+    if (!datos || typeof datos !== 'object') throw new Error('el archivo no trae "datos"');
+    const traeAlgo = CLAVES_RESPALDO.filter(c => datos[c] != null);
+    if (!traeAlgo.length) throw new Error('el archivo no trae ninguna de las cuatro claves');
+    if (!confirm('Vas a sobrescribir ' + traeAlgo.join(', ') + ' con el archivo.\n\n¿Seguro?')) return;
+    for (const c of traeAlgo) {
+      let contenido = datos[c];
+      /* Los respaldos anteriores al 4-ago-2026 traen el PIN del planeador dentro
+         de `equipo`. Ya no se usa —el equipo entra con su número— y no tiene por
+         qué quedarse guardado en la base nueva. */
+      if (c === 'equipo' && contenido && typeof contenido === 'object' && 'pin' in contenido) {
+        contenido = { ...contenido };
+        delete contenido.pin;
+      }
+      await guardarConfig(c, contenido);
+    }
+    alert('Restaurado: ' + traeAlgo.join(', ') + '.\n\nSe recarga la app.');
+    location.reload();
+  } catch (e) {
+    alert('No se pudo restaurar: ' + e.message);
+  }
 }
 
 // ── Panel Admin ───────────────────────────────────────────
@@ -621,7 +782,6 @@ function renderFormEquipo() {
     <td><select class="eq-input eq-short" data-campo="descFijo">${dOpts(a.descFijo)}</select></td>
     <td><input class="eq-input eq-short" data-campo="key" value="${a.key}"></td>
     <td><button class="btn-quitar-as" onclick="this.closest('tr').remove()">✕</button></td></tr>`;
-  const pinActual   = eq.pin || '';
   const hAp = eq.horaApertura ?? 10;
   const hCi = eq.horaCierre   ?? 21;
   const hOpts = (sel, min, max) => Array.from({length: max-min+1}, (_,i) => i+min)
@@ -649,9 +809,13 @@ function renderFormEquipo() {
       </div>
     </div>
     <div class="eq-section">
-      <h4>PIN de acceso para tu equipo</h4>
-      <p style="font-size:11px;color:#888;margin-bottom:8px">Tu equipo entra con este PIN — cámbialo cuando quieras revocar acceso</p>
-      <input class="eq-input" id="inp-pin-tienda" value="${pinActual}" placeholder="ej: 1217" maxlength="8" style="width:140px;text-align:center;font-size:18px;font-weight:700;letter-spacing:6px;">
+      <h4>¿Cómo entra tu equipo?</h4>
+      <p style="font-size:11px;color:#888;margin-bottom:8px">
+        Con <strong>su número de empleado</strong>, el mismo del tablero. Ya no hay
+        un PIN compartido: para quitarle el acceso a alguien, dale de baja en
+        <strong>Admin → Equipo</strong> y deja de ver el horario, sin cambiárselo
+        a los demás.
+      </p>
     </div>
     <div class="eq-section"><h4>Gerentes <span style="font-weight:400;color:#888">(siempre 2)</span></h4>
       <table class="eq-table"><thead><tr><th>Nombre completo</th><th>Cargo</th><th>#Emp</th><th>Descanso fijo</th><th>ID</th></tr></thead>
@@ -692,7 +856,6 @@ function actualizarPreviewTurnos() {
 }
 
 function leerEquipoForm() {
-  const pin          = document.getElementById('inp-pin-tienda')?.value.trim() || '';
   const horaApertura = parseInt(document.getElementById('inp-hora-apertura')?.value ?? 10);
   const horaCierre   = parseInt(document.getElementById('inp-hora-cierre')?.value   ?? 21);
   const leer = (id, allowVacante) => [...document.querySelectorAll(`#${id} tr`)].map(tr => {
@@ -705,7 +868,9 @@ function leerEquipoForm() {
     return obj;
   }).filter(o => (o.nombre && o.key) || (allowVacante && o.vacante && o.key));
   const rotacion = document.getElementById('inp-rotacion')?.value || 'diaria';
-  return { pin, horaApertura, horaCierre, rotacion, gerentes: leer('tbody-ger', true), asesores: leer('tbody-as', false) };
+  // Sin `pin`: el equipo entra con su número de empleado (4-ago-2026). Si el
+  // respaldo viejo lo traía, se pierde aquí a propósito.
+  return { horaApertura, horaCierre, rotacion, gerentes: leer('tbody-ger', true), asesores: leer('tbody-as', false) };
 }
 
 // ── Formulario Próxima semana ─────────────────────────────────
@@ -897,13 +1062,13 @@ async function guardarAdmin() {
   } catch(e) { msg.textContent='⚠ Error: '+e.message; msg.style.color='#c62828'; }
 }
 
-// ── Mostrar app ───────────────────────────────────────────
-async function mostrarApp() {
-  const { data: { user } } = await _sb.auth.getUser();
-  if (!user) return;
+// ── Mostrar app (vista del gerente: puede editar) ──────────
+async function mostrarApp(quienDice) {
+  if (!_tienda) return;
   document.getElementById('overlay-login').classList.remove('activo');
   document.getElementById('barra-usuario').classList.add('activo');
-  document.getElementById('usuario-email').textContent = user.email;
+  document.getElementById('usuario-email').textContent =
+    quienDice || (await _sb.auth.getUser()).data.user?.email || '';
   await init();
 }
 
@@ -1385,15 +1550,11 @@ async function guardarSemana() {
   await guardarConfig('semanas_guardadas', sg);
   _cache.semanas_guardadas = sg;
 
-  // 3. Publicar la foto para el equipo (PIN): va dentro de excepciones.__publicadas
-  //    porque el RPC público solo devuelve equipo/historial/excepciones.
-  const exc = { ..._cache.excepciones };
-  const pub = { ...(exc.__publicadas || {}), [`semana_${_semana}`]: { dias: _diasActuales } };
-  Object.keys(pub).map(k => parseInt(k.replace('semana_',''))).sort((a,b)=>b-a).slice(4)
-    .forEach(k => delete pub[`semana_${k}`]);
-  exc.__publicadas = pub;
-  await guardarConfig('excepciones', exc);
-  _cache.excepciones = exc;
+  /* Ya no hay paso 3. Hasta el 4-ago-2026 aquí se guardaba una SEGUNDA copia del
+     horario dentro de `excepciones.__publicadas`, porque el RPC que leía el
+     equipo devolvía `excepciones` pero no `semanas_guardadas`, y no había
+     permiso para cambiar ese RPC. Ahora `horario_equipo` devuelve la buena, así
+     que el equipo lee lo mismo que acaba de guardarse arriba. */
 
   const btn = document.getElementById('btn-guardar-sem');
   if (btn) { btn.textContent = '✓ Guardada'; setTimeout(() => { btn.textContent = '💾 Guardar semana'; }, 2000); }
@@ -1407,7 +1568,9 @@ async function desbloquearSemana() {
   delete sg[`semana_${_semana}`];
   await guardarConfig('semanas_guardadas', sg);
   _cache.semanas_guardadas = sg;
-  // Quitar la foto publicada para el equipo
+  /* Los respaldos de antes del 4-ago-2026 traen la copia vieja dentro de
+     `__publicadas`; si quedara, el equipo seguiría viendo la semana que se acaba
+     de desbloquear. Se limpia cuando existe. */
   if (_cache.excepciones?.__publicadas?.[`semana_${_semana}`]) {
     const exc = { ..._cache.excepciones };
     exc.__publicadas = { ...exc.__publicadas };
@@ -1490,7 +1653,12 @@ async function exportarExcel() {
     const resp=await fetch('logo_huawei.jpg'); const buf=await resp.arrayBuffer();
     const imgId=wb.addImage({ buffer:buf, extension:'jpeg' });
     ws.addImage(imgId, { tl:{ col:15.1, row:0.15 }, ext:{ width:150, height:70 } });
-  } catch(e) {}
+  } catch(e) {
+    // El logo es adorno: si no baja, el Excel se entrega igual y sin logo, que es
+    // mejor que dejar al gerente sin horario que imprimir. Queda en consola por si
+    // alguien nota que el archivo salió pelón.
+    console.warn('El logo Huawei no se pudo incrustar en el Excel:', e);
+  }
 
   // ── Encabezado NOMBRE / días / FIRMA (filas 6-7) ──
   ws.mergeCells('C6:C7'); const nH=S('C6','NOMBRE'); nH.font={name:ARIAL,size:16,bold:true}; nH.fill=solid(LIGHT); nH.alignment=CEN;
@@ -1564,10 +1732,67 @@ function navSemana(delta) {
   renderSemana();
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
+/* El archivo es el mismo en los dos sitios donde se publica; lo que cambia es
+   el nombre con el que se sirve. Como `horarios.html` vive dentro del tablero
+   (junto a su index.html), ahí sí hay menú al cual volver. Como
+   `horario_semanal.html` en planeador-odemas, no lo hay —su index.html es un
+   redirect a este mismo archivo y el botón dejaría al usuario en un círculo. */
+function mostrarVolverAlMenu() {
+  const dentroDelTablero = /\/horarios\.html$/.test(location.pathname);
+  if (dentroDelTablero) document.getElementById('volver-menu').style.display = 'block';
+}
+
+/* ── Arranque ──
+   Lo primero es intentar heredar la sesión del tablero: si la persona ya entró a
+   HES Red, aquí no se le pregunta nada. Solo si no hay nada que heredar se
+   enseña el login, que es el caso de la URL suelta (planeador-odemas).
+
+   El tablero deja tres cosas en localStorage al entrar: `hes_store` (la tienda),
+   `hes_role` y `hes_empleado` (quién es). Comparten origen y proyecto de
+   Supabase, así que la sesión de gerente vale tal cual. */
+function sesionDelTablero() {
+  try {
+    const cfg = JSON.parse(localStorage.getItem('hes_store') || 'null');
+    if (!cfg || !cfg.store_id) return null;
+    const emp = JSON.parse(localStorage.getItem('hes_empleado') || 'null');
+    return { cfg, emp, rol: localStorage.getItem('hes_role') };
+  } catch (e) { return null; }
+}
+
+async function arrancar() {
+  const heredada = sesionDelTablero();
+
+  // 1 · Gerente o subgerente: su sesión de Supabase ya lo autoriza a editar.
   const { data: { session } } = await _sb.auth.getSession();
-  if (session) { mostrarApp(); }
-  // si no hay sesión, el overlay de login ya está visible
+  if (session) {
+    let tienda = heredada ? heredada.cfg
+      : (await _sb.from('tiendas').select(COLS_TIENDA).eq('user_id', session.user.id).maybeSingle()).data;
+    if (tienda && tienda.store_id) {
+      fijarSesion(tienda, { puedeEditar: true });
+      return mostrarApp(session.user.email);
+    }
+  }
+
+  // 2 · Alguien del equipo que ya entró al tablero con su número.
+  if (heredada && heredada.emp && heredada.emp.empno) {
+    fijarSesion(heredada.cfg, { empno: heredada.emp.empno });
+    const datos = (await _sb.rpc('horario_equipo', {
+      p_store_id: heredada.cfg.store_id, p_empno: heredada.emp.empno })).data;
+    if (datos) return mostrarHorarioEquipo(datos);
+    /* Sin horario todavía: se le dice, en vez de mandarlo a un login que no
+       resuelve nada —él ya se identificó. */
+    document.getElementById('overlay-login').classList.remove('activo');
+    document.getElementById('sin-asignar').style.display = '';
+    return;
+  }
+
+  // 3 · URL suelta: el login de siempre.
+  document.getElementById('overlay-login').classList.add('activo');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  mostrarVolverAlMenu();
+  arrancar();
 });
 </script>
 </body>

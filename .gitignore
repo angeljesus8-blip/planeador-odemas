@@ -3,3 +3,15 @@
 historial.json
 excepciones.json
 _privado_no_publicar/
+
+# 4-ago-2026: este repo es PÚBLICO y estos archivos estaban sin ignorar. El
+# flujo de publicar era `git add -A`, así que un descuido subía el concentrado
+# de empleados (58 MB con nombres, números y datos de todo el equipo) a la vista
+# de cualquiera. El repo solo debe llevar el .html, el index y los logos.
+Concentrado de empleados HES.xlsx
+planeador semanal *.xlsm
+*.xlsx
+*.xlsm
+HorarioVBA_HES1217.bas
+logo_uri.txt
+deploy.ps1
