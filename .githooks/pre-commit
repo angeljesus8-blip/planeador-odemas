@@ -1,0 +1,21 @@
+#!/bin/sh
+# Este repo se publica en planeador-odemas, que es PUBLICO. Lo unico que se
+# revisa antes de dejar hacer commit es que no salgan nombres ni numeros del
+# equipo — la regla y la lista viven en el tablero de la 1217, para que no haya
+# dos copias y una se quede corta.
+#
+# Instalar (una vez):  git config core.hooksPath .githooks
+# Saltar a proposito:  git commit --no-verify
+V=../tablero-hes1217/verificar.py
+if [ ! -f "$V" ]; then
+  echo "No encuentro $V."
+  echo "Los dos repos tienen que estar uno al lado del otro (ver CLAUDE.md)."
+  echo "Commit detenido: nadie ha revisado que no salgan nombres del equipo."
+  exit 1
+fi
+echo "Revisando que no salgan nombres del equipo..."
+python "$V" --solo-datos . || {
+  echo ""
+  echo "Commit detenido. Este repo es publico."
+  exit 1
+}
